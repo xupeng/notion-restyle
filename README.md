@@ -50,6 +50,19 @@ Restyle 启动时，保存后会自动热更新到现有标签页；新标签页
 项目内文件，不读取或修改 `~/.config/notion/custom.css`、`gist.json`、Gist 缓存或
 旧 `notion-font-customizer` 的其他配置。
 
+## 正文缩放
+
+Notion Restyle 可以单独缩放笔记正文，不改变页面标题、属性、评论、侧边栏或顶部栏：
+
+- `Control` + `Shift` + `+`：放大 10%
+- `Control` + `Shift` + `-`：缩小 10%
+- `Control` + `Shift` + `0`：恢复 100%
+
+缩放范围为 60%–160%。当前比例会短暂显示在页面底部，并由 Notion 的本地存储保存；
+所有笔记和标签页共用同一比例，刷新或重启后仍会保留。`Restore.command` 只移除当前
+注入效果，不删除已保存的比例。Notion 原有的 `Command` + `+` / `-` 整窗缩放快捷键
+保持不变。
+
 ## 配置固定端口
 
 默认情况下，每个新的 Notion Restyle 会话都会随机选择 CDP 端口。如需使用固定

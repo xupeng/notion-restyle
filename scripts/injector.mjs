@@ -292,6 +292,7 @@ async function statusOf(session) {
     return state ? state.status() : {
       installed: false,
       version: null,
+      contentZoomPercent: 100,
       pageContentCount: 0,
       collectionItemCount: 0,
       chatCount: 0,
