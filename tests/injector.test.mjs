@@ -16,6 +16,8 @@ import {
   stateBelongsToWatcher,
 } from "../scripts/injector.mjs";
 
+const injectorSource = await fs.readFile(new URL("../scripts/injector.mjs", import.meta.url), "utf8");
+
 const port = 54321;
 const validTarget = {
   id: "PAGE_ABC123",
@@ -89,6 +91,13 @@ test("periodically verifies existing renderer sessions", () => {
   assert.equal(recordNeedsVerification({ lastVerifiedAt: 1000 }, 1999), false);
   assert.equal(recordNeedsVerification({ lastVerifiedAt: 1000 }, 2000), true);
   assert.equal(recordNeedsVerification({ lastVerifiedAt: Number.NaN }, 2000), true);
+});
+
+test("uninstalled renderer status includes all three zoom levels", () => {
+  assert.match(
+    injectorSource,
+    /installed: false,[\s\S]*?contentZoomPercent: 100,[\s\S]*?fullScreenChatZoomPercent: 100,[\s\S]*?sidebarChatZoomPercent: 100,[\s\S]*?chatCount: 0/,
+  );
 });
 
 test("removes runtime state only when it belongs to the exiting watcher", async () => {
