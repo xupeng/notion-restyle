@@ -55,8 +55,8 @@ if ! wait_for_cdp "$port"; then
   fail "Notion 未能打开 CDP 端口 $port；请查看 $APP_ERROR_LOG"
 fi
 
-notion_pid="$(notion_main_pids | /usr/bin/head -n 1)"
-[ -n "$notion_pid" ] || fail "无法记录 Notion PID。"
+notion_pid="$(notion_pid_for_port "$port")" \
+  || fail "无法确定持有 CDP 端口 $port 的 Notion 主进程。"
 notion_started="$(process_started_at "$notion_pid")"
 read -r injector_pid injector_label < <(launch_injector "$port" "$notion_pid")
 injector_started="$(process_started_at "$injector_pid")"
