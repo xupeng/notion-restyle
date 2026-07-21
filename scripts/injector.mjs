@@ -293,6 +293,8 @@ async function statusOf(session) {
       installed: false,
       version: null,
       contentZoomPercent: 100,
+      fullScreenChatZoomPercent: 100,
+      sidebarChatZoomPercent: 100,
       pageContentCount: 0,
       collectionItemCount: 0,
       chatCount: 0,
