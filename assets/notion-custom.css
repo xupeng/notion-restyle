@@ -34,6 +34,7 @@
 
 /* === 正文内容字体 === */
 div.notion-page-content *,
+div.notion-collection-view-body :where(div.notion-page-block:not(.notion-collection-item)) *,
 div.notion-collection-item *,
 div.layout-chat *,
 div.chat_sidebar * {
@@ -43,22 +44,38 @@ div.chat_sidebar * {
   line-height: 1.8em !important;
 }
 
+/* Feed popup 的内容块与普通正文使用相同的 16px 基准字号 */
+div.notion-peek-renderer div.notion-collection-view-body
+  :where(div.notion-page-block:not(.notion-collection-item):not(div.notion-page-block div.notion-page-block))
+  :where(div.notion-selectable:not(.notion-page-block)) {
+  font-size: 16px !important;
+}
+
 /* === 标题字体 === */
-/* notion-page-block 同时出现在正文和此处，
-   此规则在后面声明，优先级更高，确保标题使用 Pridi 和原来的云黑中文字体 */
+/* 仅将真实标题块设为标题样式，避免 Feed 预览中的正文被整体加粗 */
 div.notion-header-block span,
 div.notion-header-block div,
+div.notion-header-block h1,
+div.notion-header-block h2,
+div.notion-header-block h3,
 div.notion-sub_header-block span,
 div.notion-sub_header-block div,
+div.notion-sub_header-block h1,
+div.notion-sub_header-block h2,
+div.notion-sub_header-block h3,
 div.notion-sub_sub_header-block span,
 div.notion-sub_sub_header-block div,
-div.notion-page-block span,
-div.notion-page-block div,
-div.notion-page-block h1,
-div.notion-page-block h2,
-div.notion-page-block h3 {
+div.notion-sub_sub_header-block h1,
+div.notion-sub_sub_header-block h2,
+div.notion-sub_sub_header-block h3 {
   font-family: "Pridi1", "Signika", "Oswald", "Space Grotesk", YunHei, "Noto Sans SC", "PingFang SC" !important;
   font-weight: 500 !important;
+}
+
+/* 页面卡片标题使用标题字体，但保留 Notion 自己设置的标题字重 */
+div.notion-page-block:not(.notion-collection-item) a > div[role="button"],
+div.notion-page-block:not(.notion-collection-item) a > div[role="button"] * {
+  font-family: "Pridi1", "Signika", "Oswald", "Space Grotesk", YunHei, "Noto Sans SC", "PingFang SC" !important;
 }
 
 /* === 数据库卡片字体 === */
