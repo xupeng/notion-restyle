@@ -23,6 +23,7 @@ const CHAT_BODY_SELECTOR = `[${CHAT_BODY_ATTRIBUTE}]`;
 const FULL_SCREEN_CHAT_BODY_SELECTOR = `[${CHAT_BODY_ATTRIBUTE}="full-screen"]`;
 const SIDEBAR_CHAT_BODY_SELECTOR = `[${CHAT_BODY_ATTRIBUTE}="sidebar"]`;
 const CHAT_EDITOR_SELECTOR = '[role="textbox"][contenteditable="true"], textarea';
+const FEED_CONTENT_SELECTOR = "div.notion-peek-renderer div.notion-collection-view-body div.notion-page-block:not(.notion-collection-item):not(div.notion-page-block div.notion-page-block)";
 
 function cssRuleBody(cssText, selector) {
   const escapedSelector = selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -346,17 +347,42 @@ function keyboardEvent(code, overrides = {}) {
 test("the copied CSS retains the existing Notion scopes and Google Fonts import", () => {
   assert.match(css, /fonts\.googleapis\.com/);
   assert.match(css, /div\.notion-page-content \*/);
+  assert.match(
+    css,
+    /div\.notion-collection-view-body :where\(div\.notion-page-block:not\(\.notion-collection-item\)\) \*/,
+  );
+  assert.match(
+    css,
+    /div\.notion-peek-renderer div\.notion-collection-view-body\s+:where\(div\.notion-page-block:not\(\.notion-collection-item\):not\(div\.notion-page-block div\.notion-page-block\)\)\s+:where\(div\.notion-selectable:not\(\.notion-page-block\)\)\s*\{[\s\S]*?font-size: 16px !important;/,
+  );
+  assert.doesNotMatch(css, /div\.notion-peek-renderer \*\s*\{[\s\S]*?font-size:/);
   assert.match(css, /div\.notion-collection-item \*/);
   assert.match(css, /div\.layout-chat \*/);
   assert.match(css, /div\.chat_sidebar \*/);
   assert.match(css, /div\.notion-code-block div span/);
+  assert.doesNotMatch(
+    css,
+    /div\.notion-page-block (?:div|span|h[1-3])\s*[,\{]/,
+  );
+  assert.match(css, /div\.notion-header-block h1,/);
+  assert.match(css, /div\.notion-sub_header-block h3,/);
+  assert.match(
+    css,
+    /div\.notion-sub_sub_header-block h3\s*\{[\s\S]*?font-weight: 500 !important;/,
+  );
+  const pageTitleRule = css.match(
+    /div\.notion-page-block:not\(\.notion-collection-item\) a > div\[role="button"\],\s*div\.notion-page-block:not\(\.notion-collection-item\) a > div\[role="button"\] \*\s*\{([^}]*)\}/,
+  );
+  assert.ok(pageTitleRule, "page titles must use a semantic selector");
+  assert.match(pageTitleRule[1], /font-family:/);
+  assert.doesNotMatch(pageTitleRule[1], /font-weight:/);
   assert.match(
     css,
     /div\.notion-collection-item\.notion-collection-item,\s*div\.notion-collection-item\.notion-collection-item \*[\s\S]*?font-weight: 400 !important;/,
   );
   assert.ok(
     css.lastIndexOf("div.notion-collection-item.notion-collection-item *")
-      > css.lastIndexOf("div.notion-page-block h3"),
+      > css.lastIndexOf('div.notion-page-block:not(.notion-collection-item) a > div[role="button"] *'),
     "the card override must follow the title rule",
   );
   assert.match(
@@ -416,6 +442,10 @@ test("loads three persisted zoom levels and migrates the legacy shared chat valu
   assert.equal(status.fullScreenChatZoomPercent, 120);
   assert.equal(status.sidebarChatZoomPercent, 75);
   assert.match(persisted.nodes.get(ZOOM_STYLE_ID).textContent, /zoom: 1\.3 !important/);
+  assert.match(
+    cssRuleBody(persisted.nodes.get(ZOOM_STYLE_ID).textContent, FEED_CONTENT_SELECTOR),
+    /zoom: 1\.3 !important/,
+  );
   assert.match(
     cssRuleBody(persisted.nodes.get(ZOOM_STYLE_ID).textContent, FULL_SCREEN_CHAT_BODY_SELECTOR),
     /zoom: 1\.2 !important/,
@@ -598,6 +628,8 @@ test("supports reduced chat zoom and emits no chat rule at one hundred percent",
   assert.equal(cssRuleBody(resetCss, FULL_SCREEN_CHAT_BODY_SELECTOR), null);
   assert.equal(cssRuleBody(resetCss, SIDEBAR_CHAT_BODY_SELECTOR), null);
   assert.match(resetCss, /div\.notion-page-content\s*{[\s\S]*?zoom: 1 !important/);
+  assert.match(cssRuleBody(resetCss, FEED_CONTENT_SELECTOR), /zoom: 1 !important/);
+  assert.match(FEED_CONTENT_SELECTOR, /:not\(div\.notion-page-block div\.notion-page-block\)/);
 });
 
 test("reconciles replaced message hosts and ignores nested or incomplete chat layouts", () => {

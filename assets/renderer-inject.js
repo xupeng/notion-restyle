@@ -13,6 +13,7 @@
   const FULL_SCREEN_CHAT_BODY_SELECTOR = `[${CHAT_BODY_ATTRIBUTE}="full-screen"]`;
   const SIDEBAR_CHAT_BODY_SELECTOR = `[${CHAT_BODY_ATTRIBUTE}="sidebar"]`;
   const CHAT_EDITOR_SELECTOR = '[role="textbox"][contenteditable="true"], textarea';
+  const FEED_CONTENT_SELECTOR = "div.notion-peek-renderer div.notion-collection-view-body div.notion-page-block:not(.notion-collection-item):not(div.notion-page-block div.notion-page-block)";
   const DEFAULT_ZOOM_PERCENT = 100;
   const MIN_ZOOM_PERCENT = 60;
   const MAX_ZOOM_PERCENT = 160;
@@ -88,6 +89,9 @@ ${selector} {
     ].join("");
     zoomStyle.textContent = `
 div.notion-page-content {
+  zoom: ${contentFactor} !important;
+}
+${FEED_CONTENT_SELECTOR} {
   zoom: ${contentFactor} !important;
 }
 ${chatZoomCss}
