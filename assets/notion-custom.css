@@ -1,6 +1,11 @@
 /* Notion 自定义字体配置 */
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@100..900&family=Pridi:wght@200;300;400;500;600;700&family=Signika:wght@300..700&display=swap');
 
+/* === Notion AI 形象：保留静态外观，禁用装饰动画 === */
+[id^="agent-acc-"] {
+  animation: none !important;
+}
+
 /* === 中文字体映射 === */
 @font-face {
   font-family: 'XinFang';
