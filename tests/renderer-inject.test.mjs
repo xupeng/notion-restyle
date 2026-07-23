@@ -24,6 +24,10 @@ const FULL_SCREEN_CHAT_BODY_SELECTOR = `[${CHAT_BODY_ATTRIBUTE}="full-screen"]`;
 const SIDEBAR_CHAT_BODY_SELECTOR = `[${CHAT_BODY_ATTRIBUTE}="sidebar"]`;
 const CHAT_EDITOR_SELECTOR = '[role="textbox"][contenteditable="true"], textarea';
 const FEED_CONTENT_SELECTOR = "div.notion-peek-renderer div.notion-collection-view-body div.notion-page-block:not(.notion-collection-item):not(div.notion-page-block div.notion-page-block)";
+const CONTENT_IMAGE_SELECTOR = [
+  "div.notion-page-content div.notion-image-block img",
+  `${FEED_CONTENT_SELECTOR} div.notion-image-block img`,
+].join(",\n");
 
 function cssRuleBody(cssText, selector) {
   const escapedSelector = selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -447,6 +451,10 @@ test("loads three persisted zoom levels and migrates the legacy shared chat valu
     /zoom: 1\.3 !important/,
   );
   assert.match(
+    cssRuleBody(persisted.nodes.get(ZOOM_STYLE_ID).textContent, CONTENT_IMAGE_SELECTOR),
+    /height: auto !important/,
+  );
+  assert.match(
     cssRuleBody(persisted.nodes.get(ZOOM_STYLE_ID).textContent, FULL_SCREEN_CHAT_BODY_SELECTOR),
     /zoom: 1\.2 !important/,
   );
@@ -502,6 +510,10 @@ test("uses five-percent steps and keeps content and sidebar chat independent", (
   assert.equal(current.storage.has(SIDEBAR_CHAT_ZOOM_STORAGE_KEY), false);
   assert.equal(current.storage.has(FULL_SCREEN_CHAT_ZOOM_STORAGE_KEY), false);
   assert.equal(current.nodes.get(ZOOM_TOAST_ID).textContent, "正文缩放 105%");
+  assert.match(
+    cssRuleBody(current.nodes.get(ZOOM_STYLE_ID).textContent, CONTENT_IMAGE_SELECTOR),
+    /height: auto !important/,
+  );
 
   current.dispatch("pointerdown", { target: current.chatTarget });
   current.dispatch("keydown", keyboardEvent("Minus"));
@@ -509,6 +521,10 @@ test("uses five-percent steps and keeps content and sidebar chat independent", (
   assert.equal(current.storage.get(SIDEBAR_CHAT_ZOOM_STORAGE_KEY), "95");
   assert.equal(current.storage.has(FULL_SCREEN_CHAT_ZOOM_STORAGE_KEY), false);
   assert.equal(current.nodes.get(ZOOM_TOAST_ID).textContent, "侧栏 AI 对话缩放 95%");
+  assert.match(
+    cssRuleBody(current.nodes.get(ZOOM_STYLE_ID).textContent, CONTENT_IMAGE_SELECTOR),
+    /height: auto !important/,
+  );
 
   current.dispatch("keydown", keyboardEvent("Digit0"));
   assert.equal(current.storage.get(CONTENT_ZOOM_STORAGE_KEY), "105");
@@ -627,9 +643,45 @@ test("supports reduced chat zoom and emits no chat rule at one hundred percent",
   const resetCss = reset.nodes.get(ZOOM_STYLE_ID).textContent;
   assert.equal(cssRuleBody(resetCss, FULL_SCREEN_CHAT_BODY_SELECTOR), null);
   assert.equal(cssRuleBody(resetCss, SIDEBAR_CHAT_BODY_SELECTOR), null);
+  assert.equal(cssRuleBody(resetCss, CONTENT_IMAGE_SELECTOR), null);
   assert.match(resetCss, /div\.notion-page-content\s*{[\s\S]*?zoom: 1 !important/);
   assert.match(cssRuleBody(resetCss, FEED_CONTENT_SELECTOR), /zoom: 1 !important/);
   assert.match(FEED_CONTENT_SELECTOR, /:not\(div\.notion-page-block div\.notion-page-block\)/);
+});
+
+test("preserves content image aspect ratios only while content is enlarged", () => {
+  const current = fixture({
+    storedContentZoom: "130",
+    storedFullScreenChatZoom: "120",
+    storedSidebarChatZoom: "80",
+  });
+  vm.runInNewContext(current.payload, current.context);
+
+  const enlargedRule = cssRuleBody(
+    current.nodes.get(ZOOM_STYLE_ID).textContent,
+    CONTENT_IMAGE_SELECTOR,
+  );
+  assert.match(enlargedRule, /height: auto !important/);
+  assert.doesNotMatch(enlargedRule, /(^|\s)(width|max-width):|object-fit|overflow/);
+
+  current.dispatch("storage", { key: SIDEBAR_CHAT_ZOOM_STORAGE_KEY, newValue: "125" });
+  assert.equal(
+    cssRuleBody(current.nodes.get(ZOOM_STYLE_ID).textContent, CONTENT_IMAGE_SELECTOR),
+    enlargedRule,
+  );
+
+  current.dispatch("storage", { key: CONTENT_ZOOM_STORAGE_KEY, newValue: "80" });
+  assert.equal(
+    cssRuleBody(current.nodes.get(ZOOM_STYLE_ID).textContent, CONTENT_IMAGE_SELECTOR),
+    null,
+  );
+
+  current.dispatch("pointerdown", { target: current.contentTarget });
+  current.dispatch("keydown", keyboardEvent("Digit0"));
+  assert.equal(
+    cssRuleBody(current.nodes.get(ZOOM_STYLE_ID).textContent, CONTENT_IMAGE_SELECTOR),
+    null,
+  );
 });
 
 test("reconciles replaced message hosts and ignores nested or incomplete chat layouts", () => {
