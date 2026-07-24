@@ -50,6 +50,14 @@ Restyle 启动时，保存后会自动热更新到现有标签页；新标签页
 项目内文件，不读取或修改 `~/.config/notion/custom.css`、`gist.json`、Gist 缓存或
 旧 `notion-font-customizer` 的其他配置。
 
+中文字体使用两个按用途命名的内部字体族：`NotionRestyleBodyCJK` 的 `300` 使用霞鹜文楷
+Light，`400/500` 使用 Medium，`600/700` 由浏览器基于 Medium 合成粗体；
+`NotionRestyleHeadingCJK` 将 `400–700` 映射到仓耳云黑 W04–W07。本机需安装能以
+`LXGWWenKai-Light`、`LXGWWenKai-Medium` 和 `TsangerYunHei-W04` 至
+`TsangerYunHei-W07` 识别的字体；任一字体不可用时，浏览器会继续按字体栈回退到
+`Noto Sans SC`。正文富文本中的 `600` 粗体额外使用 `0.25px` 同色描边增强辨识度，
+不会改变字号、字距或排版尺寸。
+
 ## 正文与 AI 对话缩放
 
 Notion Restyle 可以分别缩放笔记正文和 AI 对话界面。正文缩放不改变普通页面标题、属性、
