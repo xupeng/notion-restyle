@@ -7,33 +7,47 @@
 }
 
 /* === 中文字体映射 === */
+/* 正文：400/500 使用霞鹜文楷 Medium，600/700 由浏览器合成粗体 */
 @font-face {
-  font-family: 'XinFang';
-  src: local('LXGW WenKai Screen');
+  font-family: "NotionRestyleBodyCJK";
+  src: local("LXGWWenKai-Light");
+  font-weight: 300;
+}
+
+@font-face {
+  font-family: "NotionRestyleBodyCJK";
+  src: local("LXGWWenKai-Medium");
   font-weight: 400;
 }
 
 @font-face {
-  font-family: 'XinFang';
-  src: local('LXGW WenKai Screen');
+  font-family: "NotionRestyleBodyCJK";
+  src: local("LXGWWenKai-Medium");
+  font-weight: 500;
+}
+
+/* 标题：按语义字重使用仓耳云黑 */
+@font-face {
+  font-family: "NotionRestyleHeadingCJK";
+  src: local("TsangerYunHei-W04");
+  font-weight: 400;
+}
+
+@font-face {
+  font-family: "NotionRestyleHeadingCJK";
+  src: local("TsangerYunHei-W05");
+  font-weight: 500;
+}
+
+@font-face {
+  font-family: "NotionRestyleHeadingCJK";
+  src: local("TsangerYunHei-W06");
   font-weight: 600;
 }
 
 @font-face {
-  font-family: 'XinFang';
-  src: local('LXGW WenKai Screen');
-  font-weight: 700;
-}
-
-@font-face {
-  font-family: 'YunHei';
-  src: local('TsangerYunHei-W06');
-  font-weight: 600;
-}
-
-@font-face {
-  font-family: 'YunHei';
-  src: local('TsangerYunHei-W06');
+  font-family: "NotionRestyleHeadingCJK";
+  src: local("TsangerYunHei-W07");
   font-weight: 700;
 }
 
@@ -49,10 +63,21 @@ div.notion-collection-item *,
 div.layout-chat *,
 div.chat_sidebar *,
 div.notion-agent-writer-ui :where(div[role="group"].whenContentEditable) * {
-  font-family: "Caecilia LT Std", "Pridi", XinFang, "Noto Sans SC", STKaiti, -apple-system,
+  font-family: "Caecilia LT Std", "Pridi", "NotionRestyleBodyCJK", "Noto Sans SC", STKaiti, -apple-system,
     BlinkMacSystemFont, "Segoe UI", Helvetica, "Apple Color Emoji",
     Arial, sans-serif, "Segoe UI Emoji", "Segoe UI Symbol" !important;
   line-height: 1.8em !important;
+}
+
+/* 合成粗体增强：仅加深正文富文本笔画，不改变字号、字距或排版尺寸 */
+:where(
+  div.notion-page-content,
+  div.notion-collection-view-body :where(div.notion-page-block:not(.notion-collection-item)),
+  div.notion-agent-writer-ui :where(div[role="group"].whenContentEditable)
+)
+div.notion-selectable:not(.notion-page-block):not(.notion-header-block):not(.notion-sub_header-block):not(.notion-sub_sub_header-block)
+  span:is([style*="font-weight:600"], [style*="font-weight: 600"]):not(div.notion-collection-item *) {
+  -webkit-text-stroke: 0.25px currentColor;
 }
 
 /* Feed popup 的内容块使用普通正文的 16px 基准字号 */
@@ -92,21 +117,21 @@ div.notion-sub_sub_header-block div,
 div.notion-sub_sub_header-block h1,
 div.notion-sub_sub_header-block h2,
 div.notion-sub_sub_header-block h3 {
-  font-family: "Pridi1", "Signika", "Oswald", "Space Grotesk", YunHei, "Noto Sans SC", "PingFang SC" !important;
+  font-family: "Pridi1", "Signika", "Oswald", "Space Grotesk", "NotionRestyleHeadingCJK", "Noto Sans SC", "PingFang SC" !important;
   font-weight: 500 !important;
 }
 
 /* 页面卡片标题使用标题字体，但保留 Notion 自己设置的标题字重 */
 div.notion-page-block:not(.notion-collection-item) a > div[role="button"],
 div.notion-page-block:not(.notion-collection-item) a > div[role="button"] * {
-  font-family: "Pridi1", "Signika", "Oswald", "Space Grotesk", YunHei, "Noto Sans SC", "PingFang SC" !important;
+  font-family: "Pridi1", "Signika", "Oswald", "Space Grotesk", "NotionRestyleHeadingCJK", "Noto Sans SC", "PingFang SC" !important;
 }
 
 /* === 数据库卡片字体 === */
 /* notion-page-block 也用于卡片标题；在卡片内恢复正文的常规字重 */
 div.notion-collection-item.notion-collection-item,
 div.notion-collection-item.notion-collection-item * {
-  font-family: "Caecilia LT Std", "Pridi", XinFang, "Noto Sans SC", STKaiti, -apple-system,
+  font-family: "Caecilia LT Std", "Pridi", "NotionRestyleBodyCJK", "Noto Sans SC", STKaiti, -apple-system,
     BlinkMacSystemFont, "Segoe UI", Helvetica, "Apple Color Emoji",
     Arial, sans-serif, "Segoe UI Emoji", "Segoe UI Symbol" !important;
   font-weight: 400 !important;
@@ -116,7 +141,7 @@ div.notion-collection-item.notion-collection-item * {
 /* 页面标题容器也包住侧栏属性；普通属性使用正文样式，保留显式 font-weight */
 div.notion-page-block [role="row"] [role="cell"] div,
 div.notion-page-block [role="row"] [role="cell"] span {
-  font-family: "Caecilia LT Std", "Pridi", XinFang, "Noto Sans SC", STKaiti, -apple-system,
+  font-family: "Caecilia LT Std", "Pridi", "NotionRestyleBodyCJK", "Noto Sans SC", STKaiti, -apple-system,
     BlinkMacSystemFont, "Segoe UI", Helvetica, "Apple Color Emoji",
     Arial, sans-serif, "Segoe UI Emoji", "Segoe UI Symbol" !important;
 }

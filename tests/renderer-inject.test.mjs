@@ -404,7 +404,7 @@ test("the copied CSS retains the existing Notion scopes and Google Fonts import"
 test("Agent writer content uses slightly smaller scoped body typography", () => {
   assert.match(
     css,
-    /div\.notion-agent-writer-ui :where\(div\[role="group"\]\.whenContentEditable\) \*\s*\{[\s\S]*?font-family: "Caecilia LT Std", "Pridi", XinFang, "Noto Sans SC", STKaiti, -apple-system,[\s\S]*?line-height: 1\.8em !important;/,
+    /div\.notion-agent-writer-ui :where\(div\[role="group"\]\.whenContentEditable\) \*\s*\{[\s\S]*?font-family: "Caecilia LT Std", "Pridi", "NotionRestyleBodyCJK", "Noto Sans SC", STKaiti, -apple-system,[\s\S]*?line-height: 1\.8em !important;/,
   );
   assert.match(
     css,
