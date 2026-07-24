@@ -37,23 +37,42 @@
   font-weight: 700;
 }
 
+/* === 右键 Agent 弹层背景 === */
+div.notion-agent-writer-ui {
+  background-color: var(--c-bacSec) !important;
+}
+
 /* === 正文内容字体 === */
 div.notion-page-content *,
 div.notion-collection-view-body :where(div.notion-page-block:not(.notion-collection-item)) *,
 div.notion-collection-item *,
 div.layout-chat *,
-div.chat_sidebar * {
+div.chat_sidebar *,
+div.notion-agent-writer-ui :where(div[role="group"].whenContentEditable) * {
   font-family: "Caecilia LT Std", "Pridi", XinFang, "Noto Sans SC", STKaiti, -apple-system,
     BlinkMacSystemFont, "Segoe UI", Helvetica, "Apple Color Emoji",
     Arial, sans-serif, "Segoe UI Emoji", "Segoe UI Symbol" !important;
   line-height: 1.8em !important;
 }
 
-/* Feed popup 的内容块与普通正文使用相同的 16px 基准字号 */
+/* Feed popup 的内容块使用普通正文的 16px 基准字号 */
 div.notion-peek-renderer div.notion-collection-view-body
   :where(div.notion-page-block:not(.notion-collection-item):not(div.notion-page-block div.notion-page-block))
   :where(div.notion-selectable:not(.notion-page-block)) {
   font-size: 16px !important;
+}
+
+/* 右键 Agent 生成内容比普通正文稍小，但继续跟随正文缩放 */
+div.notion-agent-writer-ui :where(div[role="group"].whenContentEditable)
+  :where(div.notion-selectable:not(.notion-page-block)) {
+  font-size: 15px !important;
+}
+
+/* === 分隔符：保留整行交互区域，只缩短并居中可见横线 === */
+div.notion-divider-block [role="separator"] {
+  width: 100px !important;
+  height: 2px !important;
+  margin-inline: auto !important;
 }
 
 /* === 标题字体 === */

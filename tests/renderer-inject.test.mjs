@@ -24,6 +24,12 @@ const FULL_SCREEN_CHAT_BODY_SELECTOR = `[${CHAT_BODY_ATTRIBUTE}="full-screen"]`;
 const SIDEBAR_CHAT_BODY_SELECTOR = `[${CHAT_BODY_ATTRIBUTE}="sidebar"]`;
 const CHAT_EDITOR_SELECTOR = '[role="textbox"][contenteditable="true"], textarea';
 const FEED_CONTENT_SELECTOR = "div.notion-peek-renderer div.notion-collection-view-body div.notion-page-block:not(.notion-collection-item):not(div.notion-page-block div.notion-page-block)";
+const AGENT_WRITER_CONTENT_SELECTOR = 'div.notion-agent-writer-ui div[role="group"].whenContentEditable';
+const CONTENT_DIVIDER_SELECTOR = [
+  'div.notion-page-content div.notion-divider-block [role="separator"]',
+  `${FEED_CONTENT_SELECTOR} div.notion-divider-block [role="separator"]`,
+  `${AGENT_WRITER_CONTENT_SELECTOR} div.notion-divider-block [role="separator"]`,
+].join(",\n");
 const CONTENT_IMAGE_SELECTOR = [
   "div.notion-page-content div.notion-image-block img",
   `${FEED_CONTENT_SELECTOR} div.notion-image-block img`,
@@ -395,6 +401,74 @@ test("the copied CSS retains the existing Notion scopes and Google Fonts import"
   );
 });
 
+test("Agent writer content uses slightly smaller scoped body typography", () => {
+  assert.match(
+    css,
+    /div\.notion-agent-writer-ui :where\(div\[role="group"\]\.whenContentEditable\) \*\s*\{[\s\S]*?font-family: "Caecilia LT Std", "Pridi", XinFang, "Noto Sans SC", STKaiti, -apple-system,[\s\S]*?line-height: 1\.8em !important;/,
+  );
+  assert.match(
+    css,
+    /div\.notion-agent-writer-ui :where\(div\[role="group"\]\.whenContentEditable\)\s+:where\(div\.notion-selectable:not\(\.notion-page-block\)\)\s*\{[\s\S]*?font-size: 15px !important;/,
+  );
+  assert.doesNotMatch(
+    css,
+    /div\.notion-agent-writer-ui\s+\*\s*\{[^}]*font-size:/,
+  );
+  assert.ok(
+    css.lastIndexOf("div.notion-code-block div span")
+      > css.lastIndexOf('div.notion-agent-writer-ui :where(div[role="group"].whenContentEditable)'),
+    "the code font override must follow the scoped Agent writer typography",
+  );
+});
+
+test("Agent writer shell uses only the secondary themed background", () => {
+  const shellRule = cssRuleBody(css, "div.notion-agent-writer-ui");
+
+  assert.ok(shellRule, "missing the Agent writer shell background rule");
+  assert.match(
+    shellRule,
+    /background-color:\s*var\(--c-bacSec\)\s*!important/,
+  );
+  assert.doesNotMatch(
+    shellRule,
+    /(?:font-family|font-size|line-height|zoom)\s*:/,
+  );
+});
+
+test("divider line is 100px and centered without shrinking its selectable block", () => {
+  const dividerRule = cssRuleBody(css, 'div.notion-divider-block [role="separator"]');
+
+  assert.ok(dividerRule, "missing the semantic divider line rule");
+  assert.match(dividerRule, /width:\s*100px\s*!important/);
+  assert.match(dividerRule, /height:\s*2px\s*!important/);
+  assert.match(dividerRule, /margin-inline:\s*auto\s*!important/);
+  assert.doesNotMatch(
+    css,
+    /div\.notion-divider-block\s*\{[^}]*(?:width|zoom|transform)\s*:/,
+  );
+});
+
+test("divider visual thickness stays at two pixels across content zoom levels", () => {
+  const current = fixture();
+  vm.runInNewContext(current.payload, current.context);
+
+  const dividerHeightAt = (zoomPercent) => {
+    const rule = cssRuleBody(
+      current.nodes.get(ZOOM_STYLE_ID).textContent,
+      CONTENT_DIVIDER_SELECTOR,
+    );
+    const height = Number(rule?.match(/height:\s*([0-9.]+)px\s*!important/)?.[1]);
+    assert.ok(Number.isFinite(height), `missing divider height at ${zoomPercent}%`);
+    return height * (zoomPercent / 100);
+  };
+
+  assert.ok(Math.abs(dividerHeightAt(100) - 2) < 1e-9);
+  current.dispatch("storage", { key: CONTENT_ZOOM_STORAGE_KEY, newValue: "130" });
+  assert.ok(Math.abs(dividerHeightAt(130) - 2) < 1e-9);
+  current.dispatch("storage", { key: CONTENT_ZOOM_STORAGE_KEY, newValue: "80" });
+  assert.ok(Math.abs(dividerHeightAt(80) - 2) < 1e-9);
+});
+
 test("injects, reports target counts, reapplies, and cleans up", () => {
   const current = fixture();
   const first = vm.runInNewContext(current.payload, current.context);
@@ -449,6 +523,20 @@ test("loads three persisted zoom levels and migrates the legacy shared chat valu
   assert.match(
     cssRuleBody(persisted.nodes.get(ZOOM_STYLE_ID).textContent, FEED_CONTENT_SELECTOR),
     /zoom: 1\.3 !important/,
+  );
+  assert.match(
+    cssRuleBody(
+      persisted.nodes.get(ZOOM_STYLE_ID).textContent,
+      AGENT_WRITER_CONTENT_SELECTOR,
+    ),
+    /zoom: 1\.3 !important/,
+  );
+  assert.equal(
+    cssRuleBody(
+      persisted.nodes.get(ZOOM_STYLE_ID).textContent,
+      "div.notion-agent-writer-ui",
+    ),
+    null,
   );
   assert.match(
     cssRuleBody(persisted.nodes.get(ZOOM_STYLE_ID).textContent, CONTENT_IMAGE_SELECTOR),
@@ -646,6 +734,11 @@ test("supports reduced chat zoom and emits no chat rule at one hundred percent",
   assert.equal(cssRuleBody(resetCss, CONTENT_IMAGE_SELECTOR), null);
   assert.match(resetCss, /div\.notion-page-content\s*{[\s\S]*?zoom: 1 !important/);
   assert.match(cssRuleBody(resetCss, FEED_CONTENT_SELECTOR), /zoom: 1 !important/);
+  assert.match(
+    cssRuleBody(resetCss, AGENT_WRITER_CONTENT_SELECTOR),
+    /zoom: 1 !important/,
+  );
+  assert.equal(cssRuleBody(resetCss, "div.notion-agent-writer-ui"), null);
   assert.match(FEED_CONTENT_SELECTOR, /:not\(div\.notion-page-block div\.notion-page-block\)/);
 });
 
