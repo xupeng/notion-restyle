@@ -14,10 +14,17 @@
   const SIDEBAR_CHAT_BODY_SELECTOR = `[${CHAT_BODY_ATTRIBUTE}="sidebar"]`;
   const CHAT_EDITOR_SELECTOR = '[role="textbox"][contenteditable="true"], textarea';
   const FEED_CONTENT_SELECTOR = "div.notion-peek-renderer div.notion-collection-view-body div.notion-page-block:not(.notion-collection-item):not(div.notion-page-block div.notion-page-block)";
+  const AGENT_WRITER_CONTENT_SELECTOR = 'div.notion-agent-writer-ui div[role="group"].whenContentEditable';
+  const CONTENT_DIVIDER_SELECTOR = [
+    'div.notion-page-content div.notion-divider-block [role="separator"]',
+    `${FEED_CONTENT_SELECTOR} div.notion-divider-block [role="separator"]`,
+    `${AGENT_WRITER_CONTENT_SELECTOR} div.notion-divider-block [role="separator"]`,
+  ].join(",\n");
   const CONTENT_IMAGE_SELECTOR = [
     "div.notion-page-content div.notion-image-block img",
     `${FEED_CONTENT_SELECTOR} div.notion-image-block img`,
   ].join(",\n");
+  const DIVIDER_VISUAL_HEIGHT_PX = 2;
   const DEFAULT_ZOOM_PERCENT = 100;
   const MIN_ZOOM_PERCENT = 60;
   const MAX_ZOOM_PERCENT = 160;
@@ -78,6 +85,9 @@
 
   const updateZoomStyle = () => {
     const contentFactor = String(contentZoomPercent / 100);
+    const dividerHeight = String(
+      (DIVIDER_VISUAL_HEIGHT_PX * 100) / contentZoomPercent,
+    );
     const contentImageCss = contentZoomPercent > DEFAULT_ZOOM_PERCENT
       ? `
 ${CONTENT_IMAGE_SELECTOR} {
@@ -104,6 +114,12 @@ div.notion-page-content {
 }
 ${FEED_CONTENT_SELECTOR} {
   zoom: ${contentFactor} !important;
+}
+${AGENT_WRITER_CONTENT_SELECTOR} {
+  zoom: ${contentFactor} !important;
+}
+${CONTENT_DIVIDER_SELECTOR} {
+  height: ${dividerHeight}px !important;
 }
 ${contentImageCss}
 ${chatZoomCss}
