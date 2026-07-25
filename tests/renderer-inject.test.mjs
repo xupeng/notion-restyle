@@ -408,7 +408,7 @@ test("Agent writer content uses slightly smaller scoped body typography", () => 
   );
   assert.match(
     css,
-    /div\.notion-agent-writer-ui :where\(div\[role="group"\]\.whenContentEditable\)\s+:where\(div\.notion-selectable:not\(\.notion-page-block\)\)\s*\{[\s\S]*?font-size: 15px !important;/,
+    /div\.notion-agent-writer-ui :where\(div\[role="group"\]\.whenContentEditable\)\s+:where\(div\.notion-selectable:not\(\.notion-page-block\)\)\s*\{[\s\S]*?font-size: 13px !important;/,
   );
   assert.doesNotMatch(
     css,
@@ -421,14 +421,16 @@ test("Agent writer content uses slightly smaller scoped body typography", () => 
   );
 });
 
-test("Agent writer shell uses only the secondary themed background", () => {
+test("Agent writer shell uses the green background and centered inset width", () => {
   const shellRule = cssRuleBody(css, "div.notion-agent-writer-ui");
 
-  assert.ok(shellRule, "missing the Agent writer shell background rule");
+  assert.ok(shellRule, "missing the Agent writer shell rule");
   assert.match(
     shellRule,
-    /background-color:\s*var\(--c-bacSec\)\s*!important/,
+    /background-color:\s*var\(--c-greBacPri\)\s*!important/,
   );
+  assert.match(shellRule, /width:\s*calc\(100%\s*-\s*48px\)\s*!important/);
+  assert.match(shellRule, /margin-inline:\s*auto\s*!important/);
   assert.doesNotMatch(
     shellRule,
     /(?:font-family|font-size|line-height|zoom)\s*:/,

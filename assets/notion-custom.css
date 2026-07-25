@@ -51,9 +51,11 @@
   font-weight: 700;
 }
 
-/* === 右键 Agent 弹层背景 === */
+/* === 右键 Agent 弹层背景与宽度 === */
 div.notion-agent-writer-ui {
-  background-color: var(--c-bacSec) !important;
+  background-color: var(--c-greBacPri) !important;
+  width: calc(100% - 48px) !important;
+  margin-inline: auto !important;
 }
 
 /* === 正文内容字体 === */
@@ -90,7 +92,7 @@ div.notion-peek-renderer div.notion-collection-view-body
 /* 右键 Agent 生成内容比普通正文稍小，但继续跟随正文缩放 */
 div.notion-agent-writer-ui :where(div[role="group"].whenContentEditable)
   :where(div.notion-selectable:not(.notion-page-block)) {
-  font-size: 15px !important;
+  font-size: 13px !important;
 }
 
 /* === 分隔符：保留整行交互区域，只缩短并居中可见横线 === */
