@@ -24,6 +24,7 @@ const FULL_SCREEN_CHAT_BODY_SELECTOR = `[${CHAT_BODY_ATTRIBUTE}="full-screen"]`;
 const SIDEBAR_CHAT_BODY_SELECTOR = `[${CHAT_BODY_ATTRIBUTE}="sidebar"]`;
 const CHAT_EDITOR_SELECTOR = '[role="textbox"][contenteditable="true"], textarea';
 const FEED_CONTENT_SELECTOR = "div.notion-peek-renderer div.notion-collection-view-body div.notion-page-block:not(.notion-collection-item):not(div.notion-page-block div.notion-page-block)";
+const FEED_PREVIEW_SELECTOR = `${FEED_CONTENT_SELECTOR} div[style*="overflow-y: hidden"][style*="max-height: 500px"]`;
 const AGENT_WRITER_CONTENT_SELECTOR = 'div.notion-agent-writer-ui div[role="group"].whenContentEditable';
 const CONTENT_DIVIDER_SELECTOR = [
   'div.notion-page-content div.notion-divider-block [role="separator"]',
@@ -734,6 +735,7 @@ test("supports reduced chat zoom and emits no chat rule at one hundred percent",
   assert.equal(cssRuleBody(resetCss, FULL_SCREEN_CHAT_BODY_SELECTOR), null);
   assert.equal(cssRuleBody(resetCss, SIDEBAR_CHAT_BODY_SELECTOR), null);
   assert.equal(cssRuleBody(resetCss, CONTENT_IMAGE_SELECTOR), null);
+  assert.equal(cssRuleBody(resetCss, FEED_PREVIEW_SELECTOR), null);
   assert.match(resetCss, /div\.notion-page-content\s*{[\s\S]*?zoom: 1 !important/);
   assert.match(cssRuleBody(resetCss, FEED_CONTENT_SELECTOR), /zoom: 1 !important/);
   assert.match(
@@ -742,6 +744,34 @@ test("supports reduced chat zoom and emits no chat rule at one hundred percent",
   );
   assert.equal(cssRuleBody(resetCss, "div.notion-agent-writer-ui"), null);
   assert.match(FEED_CONTENT_SELECTOR, /:not\(div\.notion-page-block div\.notion-page-block\)/);
+});
+
+test("keeps the native Feed preview control measurable while content is enlarged", () => {
+  const enlarged = fixture({ storedContentZoom: "120" });
+  vm.runInNewContext(enlarged.payload, enlarged.context);
+  const enlargedCss = enlarged.nodes.get(ZOOM_STYLE_ID).textContent;
+  const previewRule = cssRuleBody(enlargedCss, FEED_PREVIEW_SELECTOR);
+
+  assert.match(previewRule, /max-height: 501px !important/);
+  assert.match(FEED_PREVIEW_SELECTOR, /^div\.notion-peek-renderer /);
+  assert.match(FEED_PREVIEW_SELECTOR, /\[style\*="overflow-y: hidden"\]/);
+  assert.match(FEED_PREVIEW_SELECTOR, /\[style\*="max-height: 500px"\]$/);
+  assert.doesNotMatch(
+    FEED_PREVIEW_SELECTOR,
+    /notion-page-content|layout-chat|chat_sidebar|notion-agent-writer-ui/,
+  );
+
+  enlarged.dispatch("storage", { key: CONTENT_ZOOM_STORAGE_KEY, newValue: "100" });
+  assert.equal(
+    cssRuleBody(enlarged.nodes.get(ZOOM_STYLE_ID).textContent, FEED_PREVIEW_SELECTOR),
+    null,
+  );
+
+  enlarged.dispatch("storage", { key: CONTENT_ZOOM_STORAGE_KEY, newValue: "80" });
+  assert.equal(
+    cssRuleBody(enlarged.nodes.get(ZOOM_STYLE_ID).textContent, FEED_PREVIEW_SELECTOR),
+    null,
+  );
 });
 
 test("preserves content image aspect ratios only while content is enlarged", () => {

@@ -14,6 +14,7 @@
   const SIDEBAR_CHAT_BODY_SELECTOR = `[${CHAT_BODY_ATTRIBUTE}="sidebar"]`;
   const CHAT_EDITOR_SELECTOR = '[role="textbox"][contenteditable="true"], textarea';
   const FEED_CONTENT_SELECTOR = "div.notion-peek-renderer div.notion-collection-view-body div.notion-page-block:not(.notion-collection-item):not(div.notion-page-block div.notion-page-block)";
+  const FEED_PREVIEW_SELECTOR = `${FEED_CONTENT_SELECTOR} div[style*="overflow-y: hidden"][style*="max-height: 500px"]`;
   const AGENT_WRITER_CONTENT_SELECTOR = 'div.notion-agent-writer-ui div[role="group"].whenContentEditable';
   const CONTENT_DIVIDER_SELECTOR = [
     'div.notion-page-content div.notion-divider-block [role="separator"]',
@@ -95,6 +96,13 @@ ${CONTENT_IMAGE_SELECTOR} {
 }
 `
       : "";
+    const feedPreviewCss = contentZoomPercent > DEFAULT_ZOOM_PERCENT
+      ? `
+${FEED_PREVIEW_SELECTOR} {
+  max-height: 501px !important;
+}
+`
+      : "";
     const zoomRule = (selector, percent) => (
       percent === DEFAULT_ZOOM_PERCENT
         ? ""
@@ -115,6 +123,7 @@ div.notion-page-content {
 ${FEED_CONTENT_SELECTOR} {
   zoom: ${contentFactor} !important;
 }
+${feedPreviewCss}
 ${AGENT_WRITER_CONTENT_SELECTOR} {
   zoom: ${contentFactor} !important;
 }
