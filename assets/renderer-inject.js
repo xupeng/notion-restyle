@@ -16,6 +16,8 @@
   const FEED_CONTENT_SELECTOR = "div.notion-peek-renderer div.notion-collection-view-body div.notion-page-block:not(.notion-collection-item):not(div.notion-page-block div.notion-page-block)";
   const FEED_PREVIEW_SELECTOR = `${FEED_CONTENT_SELECTOR} div[style*="overflow-y: hidden"][style*="max-height: 500px"]`;
   const AGENT_WRITER_CONTENT_SELECTOR = 'div.notion-agent-writer-ui div[role="group"].whenContentEditable';
+  const EDIT_REFERENCE_BLOCK_SELECTOR = "div.notion-edit_reference-block:not(div.notion-edit_reference-block div.notion-edit_reference-block)";
+  const EDIT_REFERENCE_PRIMARY_ACTION_SELECTOR = '[data-edit-reference-id] > :first-child > :last-child > [role="button"]:first-child';
   const CONTENT_DIVIDER_SELECTOR = [
     'div.notion-page-content div.notion-divider-block [role="separator"]',
     `${FEED_CONTENT_SELECTOR} div.notion-divider-block [role="separator"]`,
@@ -112,9 +114,24 @@ ${selector} {
 }
 `
     );
+    const inverseZoomRule = (bodySelector, percent) => (
+      percent === DEFAULT_ZOOM_PERCENT
+        ? ""
+        : `
+${bodySelector} ${EDIT_REFERENCE_BLOCK_SELECTOR} {
+  zoom: ${String(DEFAULT_ZOOM_PERCENT / percent)} !important;
+}
+/* The card container provides the same native EditReference action without the zoom-sensitive button gate. */
+${bodySelector} ${EDIT_REFERENCE_PRIMARY_ACTION_SELECTOR} {
+  pointer-events: none !important;
+}
+`
+    );
     const chatZoomCss = [
       zoomRule(FULL_SCREEN_CHAT_BODY_SELECTOR, fullScreenChatZoomPercent),
+      inverseZoomRule(FULL_SCREEN_CHAT_BODY_SELECTOR, fullScreenChatZoomPercent),
       zoomRule(SIDEBAR_CHAT_BODY_SELECTOR, sidebarChatZoomPercent),
+      inverseZoomRule(SIDEBAR_CHAT_BODY_SELECTOR, sidebarChatZoomPercent),
     ].join("");
     zoomStyle.textContent = `
 div.notion-page-content {
@@ -183,19 +200,34 @@ ${chatZoomCss}
   };
 
   const reconcileChatBodies = () => {
-    clearChatBodyMarkers();
+    const nextMarkedChatBodies = new Map();
     const roots = [...document.querySelectorAll(CHAT_ROOT_SELECTOR)].filter((root) => (
       !root.parentElement?.closest(CHAT_ROOT_SELECTOR)
     ));
     for (const root of roots) {
       const messageHost = messageHostFor(root);
       if (!messageHost) continue;
-      messageHost.setAttribute(
-        CHAT_BODY_ATTRIBUTE,
+      nextMarkedChatBodies.set(
+        messageHost,
         root.matches(".chat_sidebar") ? "sidebar" : "full-screen",
       );
-      markedChatBodies.add(messageHost);
     }
+    for (const [messageHost, chatType] of nextMarkedChatBodies) {
+      if (messageHost.getAttribute(CHAT_BODY_ATTRIBUTE) !== chatType) {
+        messageHost.setAttribute(CHAT_BODY_ATTRIBUTE, chatType);
+      }
+    }
+    const staleMarkedChatBodies = new Set([
+      ...markedChatBodies,
+      ...document.querySelectorAll(CHAT_BODY_SELECTOR),
+    ]);
+    for (const messageHost of staleMarkedChatBodies) {
+      if (!nextMarkedChatBodies.has(messageHost)) {
+        messageHost.removeAttribute(CHAT_BODY_ATTRIBUTE);
+      }
+    }
+    markedChatBodies.clear();
+    for (const messageHost of nextMarkedChatBodies.keys()) markedChatBodies.add(messageHost);
   };
 
   const scheduleChatBodyReconcile = () => {

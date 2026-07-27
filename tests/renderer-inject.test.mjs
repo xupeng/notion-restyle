@@ -26,6 +26,8 @@ const CHAT_EDITOR_SELECTOR = '[role="textbox"][contenteditable="true"], textarea
 const FEED_CONTENT_SELECTOR = "div.notion-peek-renderer div.notion-collection-view-body div.notion-page-block:not(.notion-collection-item):not(div.notion-page-block div.notion-page-block)";
 const FEED_PREVIEW_SELECTOR = `${FEED_CONTENT_SELECTOR} div[style*="overflow-y: hidden"][style*="max-height: 500px"]`;
 const AGENT_WRITER_CONTENT_SELECTOR = 'div.notion-agent-writer-ui div[role="group"].whenContentEditable';
+const EDIT_REFERENCE_BLOCK_SELECTOR = "div.notion-edit_reference-block:not(div.notion-edit_reference-block div.notion-edit_reference-block)";
+const EDIT_REFERENCE_PRIMARY_ACTION_SELECTOR = '[data-edit-reference-id] > :first-child > :last-child > [role="button"]:first-child';
 const CONTENT_DIVIDER_SELECTOR = [
   'div.notion-page-content div.notion-divider-block [role="separator"]',
   `${FEED_CONTENT_SELECTOR} div.notion-divider-block [role="separator"]`,
@@ -53,6 +55,7 @@ class FakeElement {
     this.dataset = {};
     this.id = "";
     this.textContent = "";
+    this.attributeOperations = [];
   }
 
   appendChild(child) {
@@ -84,9 +87,15 @@ class FakeElement {
 
   getAttribute(name) { return this.attributes.get(name) ?? null; }
 
-  setAttribute(name, value) { this.attributes.set(name, String(value)); }
+  setAttribute(name, value) {
+    this.attributeOperations.push({ type: "set", name, value: String(value) });
+    this.attributes.set(name, String(value));
+  }
 
-  removeAttribute(name) { this.attributes.delete(name); }
+  removeAttribute(name) {
+    this.attributeOperations.push({ type: "remove", name });
+    this.attributes.delete(name);
+  }
 
   matches(selector) {
     if (/^\.[A-Za-z0-9_-]+$/.test(selector)) return this.classList.has(selector.slice(1));
@@ -708,6 +717,119 @@ test("zooms only the marked message host in sidebar and full-screen chat", () =>
   }
 });
 
+test("keeps native EditReference cards at one hundred percent inside zoomed chats", () => {
+  const current = fixture({
+    storedFullScreenChatZoom: "125",
+    storedSidebarChatZoom: "80",
+    fullScreenChat: true,
+  });
+  vm.runInNewContext(current.payload, current.context);
+  const zoomCss = current.nodes.get(ZOOM_STYLE_ID).textContent;
+  const fullScreenCardSelector = `${FULL_SCREEN_CHAT_BODY_SELECTOR} ${EDIT_REFERENCE_BLOCK_SELECTOR}`;
+  const sidebarCardSelector = `${SIDEBAR_CHAT_BODY_SELECTOR} ${EDIT_REFERENCE_BLOCK_SELECTOR}`;
+  const fullScreenPrimaryActionSelector = `${FULL_SCREEN_CHAT_BODY_SELECTOR} ${EDIT_REFERENCE_PRIMARY_ACTION_SELECTOR}`;
+  const sidebarPrimaryActionSelector = `${SIDEBAR_CHAT_BODY_SELECTOR} ${EDIT_REFERENCE_PRIMARY_ACTION_SELECTOR}`;
+
+  assert.match(
+    cssRuleBody(zoomCss, fullScreenCardSelector),
+    /zoom: 0\.8 !important/,
+  );
+  assert.match(
+    cssRuleBody(zoomCss, sidebarCardSelector),
+    /zoom: 1\.25 !important/,
+  );
+  assert.match(
+    cssRuleBody(zoomCss, fullScreenPrimaryActionSelector),
+    /pointer-events: none !important/,
+  );
+  assert.match(
+    cssRuleBody(zoomCss, sidebarPrimaryActionSelector),
+    /pointer-events: none !important/,
+  );
+  assert.equal(
+    EDIT_REFERENCE_BLOCK_SELECTOR,
+    "div.notion-edit_reference-block:not(div.notion-edit_reference-block div.notion-edit_reference-block)",
+  );
+  assert.equal(
+    EDIT_REFERENCE_PRIMARY_ACTION_SELECTOR,
+    '[data-edit-reference-id] > :first-child > :last-child > [role="button"]:first-child',
+  );
+  assert.doesNotMatch(
+    zoomCss,
+    /(?:^|\n)div\.notion-edit_reference-block:not\(div\.notion-edit_reference-block div\.notion-edit_reference-block\)\s*\{/,
+  );
+  assert.doesNotMatch(
+    zoomCss,
+    /(?:^|\n)\[data-edit-reference-id\]\s*>\s*:first-child/,
+  );
+
+  const actualZoom = fixture({
+    storedFullScreenChatZoom: "105",
+    fullScreenChat: true,
+  });
+  vm.runInNewContext(actualZoom.payload, actualZoom.context);
+  assert.match(
+    cssRuleBody(
+      actualZoom.nodes.get(ZOOM_STYLE_ID).textContent,
+      fullScreenCardSelector,
+    ),
+    /zoom: 0\.9523809523809523 !important/,
+  );
+  assert.match(
+    cssRuleBody(
+      actualZoom.nodes.get(ZOOM_STYLE_ID).textContent,
+      fullScreenPrimaryActionSelector,
+    ),
+    /pointer-events: none !important/,
+  );
+
+  current.dispatch("keydown", keyboardEvent("Digit0"));
+  assert.equal(
+    cssRuleBody(
+      current.nodes.get(ZOOM_STYLE_ID).textContent,
+      fullScreenCardSelector,
+    ),
+    null,
+  );
+  assert.equal(
+    cssRuleBody(
+      current.nodes.get(ZOOM_STYLE_ID).textContent,
+      fullScreenPrimaryActionSelector,
+    ),
+    null,
+  );
+  assert.match(
+    cssRuleBody(
+      current.nodes.get(ZOOM_STYLE_ID).textContent,
+      sidebarCardSelector,
+    ),
+    /zoom: 1\.25 !important/,
+  );
+  assert.match(
+    cssRuleBody(
+      current.nodes.get(ZOOM_STYLE_ID).textContent,
+      sidebarPrimaryActionSelector,
+    ),
+    /pointer-events: none !important/,
+  );
+
+  current.dispatch("storage", { key: SIDEBAR_CHAT_ZOOM_STORAGE_KEY, newValue: "100" });
+  assert.equal(
+    cssRuleBody(
+      current.nodes.get(ZOOM_STYLE_ID).textContent,
+      sidebarCardSelector,
+    ),
+    null,
+  );
+  assert.equal(
+    cssRuleBody(
+      current.nodes.get(ZOOM_STYLE_ID).textContent,
+      sidebarPrimaryActionSelector,
+    ),
+    null,
+  );
+});
+
 test("supports reduced chat zoom and emits no chat rule at one hundred percent", () => {
   const reduced = fixture({
     storedFullScreenChatZoom: "80",
@@ -812,7 +934,17 @@ test("preserves content image aspect ratios only while content is enlarged", () 
 test("reconciles replaced message hosts and ignores nested or incomplete chat layouts", () => {
   const dynamic = fixture({ nestedChat: true });
   vm.runInNewContext(dynamic.payload, dynamic.context);
-  const previousHost = dynamic.messageHost;
+  const previousHost = dynamic.nestedMessageHost;
+  previousHost.attributeOperations.length = 0;
+
+  dynamic.triggerMutation();
+  dynamic.flushAnimationFrames();
+  assert.deepEqual(
+    previousHost.attributeOperations,
+    [],
+    "a stable message host must not lose and regain its zoom marker",
+  );
+
   const nextHost = dynamic.replaceMessageHost();
 
   dynamic.triggerMutation();
@@ -821,6 +953,14 @@ test("reconciles replaced message hosts and ignores nested or incomplete chat la
   dynamic.flushAnimationFrames();
   assert.equal(previousHost.hasAttribute(CHAT_BODY_ATTRIBUTE), false);
   assert.equal(nextHost.getAttribute(CHAT_BODY_ATTRIBUTE), "sidebar");
+  assert.deepEqual(
+    previousHost.attributeOperations,
+    [{ type: "remove", name: CHAT_BODY_ATTRIBUTE }],
+  );
+  assert.deepEqual(
+    nextHost.attributeOperations,
+    [{ type: "set", name: CHAT_BODY_ATTRIBUTE, value: "sidebar" }],
+  );
   assert.equal(dynamic.nestedMessageHost.hasAttribute(CHAT_BODY_ATTRIBUTE), false);
 
   const textarea = fixture({ textareaEditor: true });
