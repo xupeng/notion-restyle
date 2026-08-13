@@ -60,8 +60,10 @@ test("maps role-based CJK font families to the intended local sources", () => {
 
   assert.match(
     css,
-    /font-family:\s*"Caecilia LT Std",\s*"Pridi",\s*"NotionRestyleBodyCJK",\s*"Noto Sans SC"/,
+    /font-family:\s*"Oxanium",\s*"Pridi",\s*"NotionRestyleBodyCJK",\s*"Noto Sans SC"/,
   );
+  assert.match(css, /family=Oxanium:wght@200\.\.800/);
+  assert.doesNotMatch(css, /\bCaecilia LT Std\b/);
   assert.match(
     css,
     /font-family:\s*"Pridi1",\s*"Signika",\s*"Oswald",\s*"Space Grotesk",\s*"NotionRestyleHeadingCJK",\s*"Noto Sans SC"/,

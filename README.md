@@ -50,7 +50,8 @@ Restyle 启动时，保存后会自动热更新到现有标签页；新标签页
 项目内文件，不读取或修改 `~/.config/notion/custom.css`、`gist.json`、Gist 缓存或
 旧 `notion-font-customizer` 的其他配置。
 
-中文字体使用两个按用途命名的内部字体族：`NotionRestyleBodyCJK` 的 `300` 使用霞鹜文楷
+正文英文默认使用 `Oxanium`，加载失败时回退到 `Pridi`。中文字体使用两个按用途命名的
+内部字体族：`NotionRestyleBodyCJK` 的 `300` 使用霞鹜文楷
 Light，`400/500` 使用 Medium，`600/700` 由浏览器基于 Medium 合成粗体；
 `NotionRestyleHeadingCJK` 将 `400–700` 映射到仓耳云黑 W04–W07。本机需安装能以
 `LXGWWenKai-Light`、`LXGWWenKai-Medium` 和 `TsangerYunHei-W04` 至
