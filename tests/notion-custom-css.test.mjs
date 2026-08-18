@@ -97,6 +97,16 @@ test("enhances inline body bold without changing layout metrics", () => {
   );
 });
 
+test("keeps collection record icons vertically aligned with card text", () => {
+  const iconRule = css.match(
+    /div\.notion-collection-item \.notion-record-icon,\s*div\.notion-collection-item \.notion-record-icon \*\s*\{([^}]*)\}/,
+  );
+
+  assert.ok(iconRule, "missing the scoped collection record icon reset");
+  assert.match(iconRule[1], /line-height:\s*1\s*!important\s*;/);
+  assert.doesNotMatch(iconRule[1], /(?:position|transform|margin|top)\s*:/);
+});
+
 test("disables AI accessory animation without suppressing loading indicators", () => {
   const accessoryRule = css.match(/\[id\^=["']agent-acc-["']\]\s*\{([^}]*)\}/);
 
