@@ -140,6 +140,12 @@ div.notion-collection-item.notion-collection-item * {
   font-weight: 400 !important;
 }
 
+/* 卡片内的页面图标保留 Notion 的紧凑行高，避免 emoji 被正文行高压到文字下方 */
+div.notion-collection-item .notion-record-icon,
+div.notion-collection-item .notion-record-icon * {
+  line-height: 1 !important;
+}
+
 /* === 数据库属性字体 === */
 /* 页面标题容器也包住侧栏属性；普通属性使用正文样式，保留显式 font-weight */
 div.notion-page-block [role="row"] [role="cell"] div,
