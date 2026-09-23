@@ -72,6 +72,13 @@ div.notion-agent-writer-ui :where(div[role="group"].whenContentEditable) * {
   line-height: 1.8em !important;
 }
 
+/* === 侧边栏字体 === */
+/* 英文/数字沿用正文的 Oxanium→Pridi 字体栈；中文字符不在该栈内，继续使用系统默认中文字体 */
+:where(.notion-sidebar-container) * {
+  font-family: "Oxanium", "Pridi", ui-sans-serif, -apple-system, "system-ui",
+    "Segoe UI Variable Display", "Segoe UI", Helvetica, Arial, sans-serif !important;
+}
+
 /* 合成粗体增强：仅加深正文富文本笔画，不改变字号、字距或排版尺寸 */
 :where(
   div.notion-page-content,

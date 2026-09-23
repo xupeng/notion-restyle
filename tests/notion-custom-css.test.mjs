@@ -73,6 +73,29 @@ test("maps role-based CJK font families to the intended local sources", () => {
   assert.doesNotMatch(css, /local\(["']LXGW WenKai Screen["']\)/);
 });
 
+test("applies the custom Latin font to the sidebar and keeps CJK fonts untouched", () => {
+  const sidebarRule = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)]
+    .find((match) => match[1].includes(".notion-sidebar-container"));
+
+  assert.ok(sidebarRule, "missing the sidebar font rule");
+  assert.match(
+    sidebarRule[1],
+    /:where\(\s*\.notion-sidebar-container\s*\)\s*\*/,
+  );
+  assert.match(
+    sidebarRule[2],
+    /font-family:\s*"Oxanium",\s*"Pridi",\s*ui-sans-serif/,
+  );
+  assert.doesNotMatch(
+    sidebarRule[2],
+    /NotionRestyle(?:Body|Heading)CJK|Noto Sans SC|STKaiti|TsangerYunHei|LXGWWenKai/,
+  );
+  assert.doesNotMatch(
+    sidebarRule[2],
+    /(?:font-weight|font-size|line-height|letter-spacing)\s*:/,
+  );
+});
+
 test("enhances inline body bold without changing layout metrics", () => {
   const boldRule = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)]
     .find((match) => (
