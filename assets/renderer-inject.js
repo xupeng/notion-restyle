@@ -192,8 +192,15 @@ ${chatZoomCss}
     const editor = [...root.querySelectorAll(CHAT_EDITOR_SELECTOR)].find(isVisibleElement);
     let branch = editor;
     while (branch && branch !== root) {
-      const viewport = branch.previousElementSibling;
-      if (isVerticalScroller(viewport)) return viewport.firstElementChild;
+      const previous = branch.previousElementSibling;
+      // Notion may wrap the history scroller together with a floating control.
+      const viewport = isVerticalScroller(previous)
+        ? previous
+        : [...(previous?.children || [])].find(isVerticalScroller);
+      if (viewport) {
+        // Sticky portal targets bracket the messages and must not receive zoom.
+        return [...viewport.children].find((node) => !node.matches(".sticky-portal-target")) || null;
+      }
       branch = branch.parentElement;
     }
     return null;
