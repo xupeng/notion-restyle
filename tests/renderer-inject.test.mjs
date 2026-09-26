@@ -162,6 +162,8 @@ function fixture({
   missingHistory = false,
   nestedChat = false,
   textareaEditor = false,
+  wrappedHistory = false,
+  stickyPortals = false,
 } = {}) {
   const nodes = new Map();
   const listeners = new Map();
@@ -193,12 +195,22 @@ function fixture({
   }));
   const chatHeader = chatRoot.appendChild(new FakeElement("header"));
   const chatLayout = chatRoot.appendChild(new FakeElement("div"));
-  const historyViewport = missingHistory ? null : chatLayout.appendChild(new FakeElement("div"));
+  const historyContainer = wrappedHistory
+    ? chatLayout.appendChild(new FakeElement("div"))
+    : chatLayout;
+  const historyViewport = missingHistory ? null : historyContainer.appendChild(new FakeElement("div"));
   if (historyViewport) historyViewport.computedStyle.overflowY = "auto";
+  if (historyViewport && stickyPortals) {
+    historyViewport.appendChild(new FakeElement("div", { classes: ["sticky-portal-target"] }));
+  }
   let messageHost = historyViewport && !emptyViewport
     ? historyViewport.appendChild(new FakeElement("div"))
     : null;
   messageHost?.appendChild(new FakeElement("div", { classes: ["notion-selectable-container"] }));
+  if (historyViewport && stickyPortals) {
+    historyViewport.appendChild(new FakeElement("div", { classes: ["sticky-portal-target"] }));
+  }
+  if (wrappedHistory) historyContainer.appendChild(new FakeElement("button"));
   const composer = chatLayout.appendChild(new FakeElement("div"));
   const chatTarget = missingEditor
     ? composer
@@ -687,6 +699,35 @@ test("full-screen chat always receives its own zoom shortcuts", () => {
   assert.equal(current.storage.get(FULL_SCREEN_CHAT_ZOOM_STORAGE_KEY), "105");
   assert.equal(current.storage.has(SIDEBAR_CHAT_ZOOM_STORAGE_KEY), true);
   assert.equal(current.nodes.get(ZOOM_TOAST_ID).textContent, "全屏 AI 对话缩放 105%");
+});
+
+test("finds wrapped chat history and skips sticky portals in both chat modes", () => {
+  for (const fullScreenChat of [false, true]) {
+    for (const wrappedHistory of [false, true]) {
+      const current = fixture({ fullScreenChat, wrappedHistory, stickyPortals: true });
+      vm.runInNewContext(current.payload, current.context);
+      const type = fullScreenChat ? "full-screen" : "sidebar";
+      assert.equal(current.messageHost.getAttribute(CHAT_BODY_ATTRIBUTE), type);
+      for (const sibling of current.messageHost.parentElement.children) {
+        if (sibling !== current.messageHost) {
+          assert.equal(sibling.hasAttribute(CHAT_BODY_ATTRIBUTE), false);
+        }
+      }
+      current.dispatch("keydown", keyboardEvent("Equal", { target: current.chatTarget }));
+      assert.match(
+        cssRuleBody(current.nodes.get(ZOOM_STYLE_ID).textContent, fullScreenChat
+          ? FULL_SCREEN_CHAT_BODY_SELECTOR : SIDEBAR_CHAT_BODY_SELECTOR),
+        /zoom: 1\.05 !important/,
+      );
+      assert.equal(current.chatTarget.parentElement.hasAttribute(CHAT_BODY_ATTRIBUTE), false);
+    }
+  }
+});
+
+test("does not mark sticky portals when wrapped history has no messages", () => {
+  const current = fixture({ wrappedHistory: true, stickyPortals: true, emptyViewport: true });
+  vm.runInNewContext(current.payload, current.context);
+  assert.equal(current.context.document.querySelectorAll(CHAT_BODY_SELECTOR).length, 0);
 });
 
 test("zooms only the marked message host in sidebar and full-screen chat", () => {
