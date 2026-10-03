@@ -22,6 +22,8 @@ const CHAT_BODY_ATTRIBUTE = "data-notion-restyle-chat-zoom-body";
 const CHAT_BODY_SELECTOR = `[${CHAT_BODY_ATTRIBUTE}]`;
 const FULL_SCREEN_CHAT_BODY_SELECTOR = `[${CHAT_BODY_ATTRIBUTE}="full-screen"]`;
 const SIDEBAR_CHAT_BODY_SELECTOR = `[${CHAT_BODY_ATTRIBUTE}="sidebar"]`;
+const FULL_SCREEN_CHAT_ZOOM_SELECTOR = `${FULL_SCREEN_CHAT_BODY_SELECTOR} > *`;
+const SIDEBAR_CHAT_ZOOM_SELECTOR = `${SIDEBAR_CHAT_BODY_SELECTOR} > *`;
 const CHAT_EDITOR_SELECTOR = '[role="textbox"][contenteditable="true"], textarea';
 const FEED_CONTENT_SELECTOR = "div.notion-peek-renderer div.notion-collection-view-body div.notion-page-block:not(.notion-collection-item):not(div.notion-page-block div.notion-page-block)";
 const FEED_PREVIEW_SELECTOR = `${FEED_CONTENT_SELECTOR} div[style*="overflow-y: hidden"][style*="max-height: 500px"]`;
@@ -567,11 +569,11 @@ test("loads three persisted zoom levels and migrates the legacy shared chat valu
     /height: auto !important/,
   );
   assert.match(
-    cssRuleBody(persisted.nodes.get(ZOOM_STYLE_ID).textContent, FULL_SCREEN_CHAT_BODY_SELECTOR),
+    cssRuleBody(persisted.nodes.get(ZOOM_STYLE_ID).textContent, FULL_SCREEN_CHAT_ZOOM_SELECTOR),
     /zoom: 1\.2 !important/,
   );
   assert.match(
-    cssRuleBody(persisted.nodes.get(ZOOM_STYLE_ID).textContent, SIDEBAR_CHAT_BODY_SELECTOR),
+    cssRuleBody(persisted.nodes.get(ZOOM_STYLE_ID).textContent, SIDEBAR_CHAT_ZOOM_SELECTOR),
     /zoom: 0\.75 !important/,
   );
 
@@ -716,7 +718,7 @@ test("finds wrapped chat history and skips sticky portals in both chat modes", (
       current.dispatch("keydown", keyboardEvent("Equal", { target: current.chatTarget }));
       assert.match(
         cssRuleBody(current.nodes.get(ZOOM_STYLE_ID).textContent, fullScreenChat
-          ? FULL_SCREEN_CHAT_BODY_SELECTOR : SIDEBAR_CHAT_BODY_SELECTOR),
+          ? FULL_SCREEN_CHAT_ZOOM_SELECTOR : SIDEBAR_CHAT_ZOOM_SELECTOR),
         /zoom: 1\.05 !important/,
       );
       assert.equal(current.chatTarget.parentElement.hasAttribute(CHAT_BODY_ATTRIBUTE), false);
@@ -739,10 +741,10 @@ test("zooms only the marked message host in sidebar and full-screen chat", () =>
     });
     vm.runInNewContext(current.payload, current.context);
     const zoomCss = current.nodes.get(ZOOM_STYLE_ID).textContent;
-    const selector = fullScreenChat
+    const hostSelector = fullScreenChat
       ? FULL_SCREEN_CHAT_BODY_SELECTOR
       : SIDEBAR_CHAT_BODY_SELECTOR;
-    const bodyRule = cssRuleBody(zoomCss, selector);
+    const bodyRule = cssRuleBody(zoomCss, `${hostSelector} > *`);
 
     assert.equal(
       current.messageHost.getAttribute(CHAT_BODY_ATTRIBUTE),
@@ -753,6 +755,8 @@ test("zooms only the marked message host in sidebar and full-screen chat", () =>
     assert.equal(current.chatTarget.hasAttribute(CHAT_BODY_ATTRIBUTE), false);
     assert.equal(current.chatButton.hasAttribute(CHAT_BODY_ATTRIBUTE), false);
     assert.match(bodyRule, /zoom: 1\.25 !important/);
+    // The host carries Notion's max-width; zooming it would widen messages past the composer.
+    assert.equal(cssRuleBody(zoomCss, hostSelector), null);
     assert.doesNotMatch(bodyRule, /scale|width|height|flex|margin|transform-origin|max-width|max-height/);
     assert.doesNotMatch(zoomCss, /\bscale:|transform-origin|margin-inline/);
   }
@@ -880,12 +884,12 @@ test("supports reduced chat zoom and emits no chat rule at one hundred percent",
   assert.match(
     cssRuleBody(
       reduced.nodes.get(ZOOM_STYLE_ID).textContent,
-      FULL_SCREEN_CHAT_BODY_SELECTOR,
+      FULL_SCREEN_CHAT_ZOOM_SELECTOR,
     ),
     /zoom: 0\.8 !important/,
   );
   assert.equal(
-    cssRuleBody(reduced.nodes.get(ZOOM_STYLE_ID).textContent, SIDEBAR_CHAT_BODY_SELECTOR),
+    cssRuleBody(reduced.nodes.get(ZOOM_STYLE_ID).textContent, SIDEBAR_CHAT_ZOOM_SELECTOR),
     null,
   );
 
@@ -895,8 +899,8 @@ test("supports reduced chat zoom and emits no chat rule at one hundred percent",
   });
   vm.runInNewContext(reset.payload, reset.context);
   const resetCss = reset.nodes.get(ZOOM_STYLE_ID).textContent;
-  assert.equal(cssRuleBody(resetCss, FULL_SCREEN_CHAT_BODY_SELECTOR), null);
-  assert.equal(cssRuleBody(resetCss, SIDEBAR_CHAT_BODY_SELECTOR), null);
+  assert.equal(cssRuleBody(resetCss, FULL_SCREEN_CHAT_ZOOM_SELECTOR), null);
+  assert.equal(cssRuleBody(resetCss, SIDEBAR_CHAT_ZOOM_SELECTOR), null);
   assert.equal(cssRuleBody(resetCss, CONTENT_IMAGE_SELECTOR), null);
   assert.equal(cssRuleBody(resetCss, FEED_PREVIEW_SELECTOR), null);
   assert.match(resetCss, /div\.notion-page-content\s*{[\s\S]*?zoom: 1 !important/);

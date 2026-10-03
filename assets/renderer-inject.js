@@ -127,10 +127,11 @@ ${bodySelector} ${EDIT_REFERENCE_PRIMARY_ACTION_SELECTOR} {
 }
 `
     );
+    // The message host carries Notion's max-width, so zoom its children to keep text within the composer width.
     const chatZoomCss = [
-      zoomRule(FULL_SCREEN_CHAT_BODY_SELECTOR, fullScreenChatZoomPercent),
+      zoomRule(`${FULL_SCREEN_CHAT_BODY_SELECTOR} > *`, fullScreenChatZoomPercent),
       inverseZoomRule(FULL_SCREEN_CHAT_BODY_SELECTOR, fullScreenChatZoomPercent),
-      zoomRule(SIDEBAR_CHAT_BODY_SELECTOR, sidebarChatZoomPercent),
+      zoomRule(`${SIDEBAR_CHAT_BODY_SELECTOR} > *`, sidebarChatZoomPercent),
       inverseZoomRule(SIDEBAR_CHAT_BODY_SELECTOR, sidebarChatZoomPercent),
     ].join("");
     zoomStyle.textContent = `
