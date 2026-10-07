@@ -172,7 +172,8 @@ div.notion-page-block [role="row"] [role="cell"] span:not([style*="font-weight"]
 }
 
 /* === 代码块字体（启用连字） === */
-div.notion-code-block div span {
-  font-family: "FiraCode Nerd Font", "JetBrains Mono", Consolas, monospace !important;
+div.notion-code-block [data-content-editable-leaf],
+div.notion-code-block [data-content-editable-leaf] * {
+  font-family: "Cascadia Code NF", Consolas, "NotionRestyleBodyCJK", "Noto Sans SC", monospace !important;
   font-feature-settings: "liga" 1, "calt" 1;
 }
