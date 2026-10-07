@@ -57,7 +57,8 @@ Light，`400/500` 使用 Medium，超过 `500` 使用霞鹜臻楷；
 `LXGWWenKai-Light`、`LXGWWenKai-Medium`、`LXGW ZhenKai GB`（或
 `LXGWZhenKaiGB`，也支持旧版 `LXGW ZhenKai` / `LXGWZhenKai-Regular`）和
 `TsangerYunHei-W04` 至 `TsangerYunHei-W07` 识别的字体；任一字体不可用时，浏览器会
-继续按字体栈回退到 `Noto Sans SC`。
+继续按字体栈回退到 `Noto Sans SC`。页面标题英文和数字使用 Signika Bold，中文使用
+仓耳云黑 W07，统一采用 `700` 字重。
 
 左侧边栏只把英文和数字换成 `Oxanium`（回退 `Pridi`）；字体栈中不含任何自定义中文字体，
 因此侧边栏里的中文继续使用系统默认中文字体，不会变成霞鹜文楷或仓耳云黑。侧边栏的字号、
