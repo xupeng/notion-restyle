@@ -52,12 +52,16 @@ Restyle 启动时，保存后会自动热更新到现有标签页；新标签页
 
 正文英文默认使用 `Oxanium`，加载失败时回退到 `Pridi`。中文字体使用两个按用途命名的
 内部字体族：`NotionRestyleBodyCJK` 的 `300` 使用霞鹜文楷
-Light，`400/500` 使用 Medium，`600/700` 由浏览器基于 Medium 合成粗体；
+Light，`400/500` 使用 Medium，超过 `500` 使用霞鹜臻楷；
 `NotionRestyleHeadingCJK` 将 `400–700` 映射到仓耳云黑 W04–W07。本机需安装能以
-`LXGWWenKai-Light`、`LXGWWenKai-Medium` 和 `TsangerYunHei-W04` 至
-`TsangerYunHei-W07` 识别的字体；任一字体不可用时，浏览器会继续按字体栈回退到
-`Noto Sans SC`。正文富文本中的 `600` 粗体额外使用 `0.25px` 同色描边增强辨识度，
-不会改变字号、字距或排版尺寸。
+`LXGWWenKai-Light`、`LXGWWenKai-Medium`、`LXGW ZhenKai GB`（或
+`LXGWZhenKaiGB`，也支持旧版 `LXGW ZhenKai` / `LXGWZhenKai-Regular`）和
+`TsangerYunHei-W04` 至 `TsangerYunHei-W07` 识别的字体；任一字体不可用时，浏览器会
+继续按字体栈回退到 `Noto Sans SC`。页面标题英文和数字使用 Signika Bold，中文使用
+仓耳云黑 W07，统一采用 `700` 字重。
+
+代码块英文和数字使用本机安装的 `Cascadia Code NF`，启用连字；中文沿用正文的
+文楷／臻楷字重映射。
 
 左侧边栏只把英文和数字换成 `Oxanium`（回退 `Pridi`）；字体栈中不含任何自定义中文字体，
 因此侧边栏里的中文继续使用系统默认中文字体，不会变成霞鹜文楷或仓耳云黑。侧边栏的字号、

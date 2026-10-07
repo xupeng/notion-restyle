@@ -393,7 +393,7 @@ test("the copied CSS retains the existing Notion scopes and Google Fonts import"
   assert.match(css, /div\.notion-collection-item \*/);
   assert.match(css, /div\.layout-chat \*/);
   assert.match(css, /div\.chat_sidebar \*/);
-  assert.match(css, /div\.notion-code-block div span/);
+  assert.match(css, /div\.notion-code-block \[data-content-editable-leaf\]/);
   assert.doesNotMatch(
     css,
     /div\.notion-page-block (?:div|span|h[1-3])\s*[,\{]/,
@@ -439,7 +439,7 @@ test("Agent writer content uses slightly smaller scoped body typography", () => 
     /div\.notion-agent-writer-ui\s+\*\s*\{[^}]*font-size:/,
   );
   assert.ok(
-    css.lastIndexOf("div.notion-code-block div span")
+    css.lastIndexOf("div.notion-code-block [data-content-editable-leaf]")
       > css.lastIndexOf('div.notion-agent-writer-ui :where(div[role="group"].whenContentEditable)'),
     "the code font override must follow the scoped Agent writer typography",
   );
