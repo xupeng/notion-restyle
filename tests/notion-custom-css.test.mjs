@@ -24,6 +24,7 @@ test("maps role-based CJK font families to the intended local sources", () => {
       [300, "LXGWWenKai-Light"],
       [400, "LXGWWenKai-Medium"],
       [500, "LXGWWenKai-Medium"],
+      ["501 900", "LXGW ZhenKai GB"],
     ])],
     ["NotionRestyleHeadingCJK", new Map([
       [400, "TsangerYunHei-W04"],
@@ -48,7 +49,7 @@ test("maps role-based CJK font families to the intended local sources", () => {
       assert.ok(rule, `${fontFamily} is missing font-weight ${weight}`);
       assert.match(
         rule,
-        new RegExp(`src:\\s*local\\(["']${localName}["']\\)\\s*;`),
+        new RegExp(`src:\\s*local\\(["']${localName}["']\\)(?:\\s*,\\s*local\\([^)]*\\))*\\s*;`),
       );
     }
   }
@@ -57,6 +58,11 @@ test("maps role-based CJK font families to the intended local sources", () => {
   assert.doesNotMatch(bodyRules, /TsangerYunHei/);
   assert.doesNotMatch(bodyRules, /font-weight:\s*(?:600|700)\s*;/);
   assert.doesNotMatch(bodyRules, /size-adjust\s*:/);
+  assert.match(
+    bodyRules,
+    /src:\s*local\("LXGW ZhenKai GB"\),\s*local\("LXGWZhenKaiGB"\),\s*local\("LXGW ZhenKai"\),\s*local\("LXGWZhenKai-Regular"\)/,
+  );
+  assert.doesNotMatch(css, /-webkit-text-stroke\s*:/);
 
   assert.match(
     css,
@@ -93,30 +99,6 @@ test("applies the custom Latin font to the sidebar and keeps CJK fonts untouched
   assert.doesNotMatch(
     sidebarRule[2],
     /(?:font-weight|font-size|line-height|letter-spacing)\s*:/,
-  );
-});
-
-test("enhances inline body bold without changing layout metrics", () => {
-  const boldRule = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)]
-    .find((match) => (
-      match[1].includes('span:is([style*="font-weight:600"], [style*="font-weight: 600"])')
-    ));
-
-  assert.ok(boldRule, "missing the scoped inline bold enhancement");
-  assert.match(boldRule[1], /div\.notion-page-content/);
-  assert.match(boldRule[1], /div\.notion-collection-view-body/);
-  assert.match(boldRule[1], /div\.notion-agent-writer-ui/);
-  assert.match(boldRule[1], /:not\(\.notion-header-block\)/);
-  assert.match(boldRule[1], /:not\(\.notion-sub_header-block\)/);
-  assert.match(boldRule[1], /:not\(\.notion-sub_sub_header-block\)/);
-  assert.match(boldRule[1], /:not\(div\.notion-collection-item \*\)/);
-  assert.match(
-    boldRule[2],
-    /-webkit-text-stroke:\s*0\.25px\s+currentColor\s*;/,
-  );
-  assert.doesNotMatch(
-    boldRule[2],
-    /(?:font-size|line-height|letter-spacing|font-weight|transform|zoom)\s*:/,
   );
 });
 
