@@ -22,6 +22,7 @@ const LEGACY_CHAT_ZOOM_STORAGE_KEY = "notion-restyle.chatZoomPercent.v1";
 const FULL_SCREEN_CHAT_ZOOM_STORAGE_KEY = "notion-restyle.fullScreenChatZoomPercent.v1";
 const SIDEBAR_CHAT_ZOOM_STORAGE_KEY = "notion-restyle.sidebarChatZoomPercent.v1";
 const CHAT_ROOT_SELECTOR = ".layout-chat, .chat_sidebar";
+const AI_HOME_COMPOSER_SELECTOR = "[data-notion-chat-input-container]";
 const CHAT_BODY_ATTRIBUTE = "data-notion-restyle-chat-zoom-body";
 const CHAT_BODY_SELECTOR = `[${CHAT_BODY_ATTRIBUTE}]`;
 const FULL_SCREEN_CHAT_BODY_SELECTOR = `[${CHAT_BODY_ATTRIBUTE}="full-screen"]`;
@@ -117,6 +118,9 @@ class FakeElement {
       return this.classList.has("layout-chat") || this.classList.has("chat_sidebar");
     }
     if (selector === CHAT_BODY_SELECTOR) return this.hasAttribute(CHAT_BODY_ATTRIBUTE);
+    if (selector === AI_HOME_COMPOSER_SELECTOR) {
+      return this.hasAttribute("data-notion-chat-input-container");
+    }
     if (selector === FULL_SCREEN_CHAT_BODY_SELECTOR) {
       return this.getAttribute(CHAT_BODY_ATTRIBUTE) === "full-screen";
     }
@@ -173,6 +177,9 @@ function fixture({
   missingEditor = false,
   missingHistory = false,
   nestedChat = false,
+  aiHome = false,
+  aiHomeColumnMaxWidth = "710px",
+  chatComposerMarked = false,
   textareaEditor = false,
   wrappedHistory = false,
   stickyPortals = false,
@@ -223,7 +230,9 @@ function fixture({
     historyViewport.appendChild(new FakeElement("div", { classes: ["sticky-portal-target"] }));
   }
   if (wrappedHistory) historyContainer.appendChild(new FakeElement("button"));
-  const composer = chatLayout.appendChild(new FakeElement("div"));
+  const composer = chatLayout.appendChild(new FakeElement("div", chatComposerMarked
+    ? { attributes: { "data-notion-chat-input-container": "true" } }
+    : {}));
   const chatTarget = missingEditor
     ? composer
     : composer.appendChild(textareaEditor
@@ -243,6 +252,24 @@ function fixture({
     nestedMessageHost = nestedViewport.appendChild(new FakeElement("div"));
     const nestedComposer = nestedLayout.appendChild(new FakeElement("div"));
     nestedComposer.appendChild(new FakeElement("div", {
+      attributes: { role: "textbox", contenteditable: "true" },
+    }));
+  }
+
+  // Notion's new AI home (/ai) ships no chat layout classes: the composer container sits in
+  // a max-width column together with the greeting above it.
+  let aiHomeColumn = null;
+  let aiHomeGreeting = null;
+  let aiHomeComposer = null;
+  if (aiHome) {
+    chatRoot.remove();
+    aiHomeColumn = body.appendChild(new FakeElement("div"));
+    aiHomeColumn.computedStyle.maxWidth = aiHomeColumnMaxWidth;
+    aiHomeGreeting = aiHomeColumn.appendChild(new FakeElement("div"));
+    aiHomeComposer = aiHomeColumn.appendChild(new FakeElement("div", {
+      attributes: { "data-notion-chat-input-container": "true" },
+    }));
+    aiHomeComposer.appendChild(new FakeElement("div", {
       attributes: { role: "textbox", contenteditable: "true" },
     }));
   }
@@ -332,6 +359,9 @@ function fixture({
     .replace("__NOTION_RESTYLE_CSS_JSON__", JSON.stringify(css))
     .replace("__NOTION_RESTYLE_VERSION_JSON__", JSON.stringify("test-revision"));
   return {
+    aiHomeColumn,
+    aiHomeComposer,
+    aiHomeGreeting,
     animationFrames,
     chatButton,
     chatHeader,
@@ -788,6 +818,48 @@ test("does not mark sticky portals when wrapped history has no messages", () => 
   const current = fixture({ wrappedHistory: true, stickyPortals: true, emptyViewport: true });
   vm.runInNewContext(current.payload, current.context);
   assert.equal(current.context.document.querySelectorAll(CHAT_BODY_SELECTOR).length, 0);
+});
+
+test("zooms the Notion AI home composer column as a full-screen chat body", () => {
+  const current = fixture({ aiHome: true, storedFullScreenChatZoom: "125" });
+  vm.runInNewContext(current.payload, current.context);
+  const zoomCss = current.nodes.get(ZOOM_STYLE_ID).textContent;
+
+  assert.equal(current.aiHomeColumn.getAttribute(CHAT_BODY_ATTRIBUTE), "full-screen");
+  assert.equal(current.aiHomeComposer.hasAttribute(CHAT_BODY_ATTRIBUTE), false);
+  assert.equal(current.aiHomeGreeting.hasAttribute(CHAT_BODY_ATTRIBUTE), false);
+  assert.equal(current.context.document.querySelectorAll(CHAT_BODY_SELECTOR).length, 1);
+  assert.match(cssRuleBody(zoomCss, FULL_SCREEN_CHAT_ZOOM_SELECTOR), /zoom: 1\.25 !important/);
+  assert.equal(cssRuleBody(zoomCss, FULL_SCREEN_CHAT_BODY_SELECTOR), null);
+});
+
+test("falls back to the AI home composer column when Notion drops its max width", () => {
+  const current = fixture({ aiHome: true, aiHomeColumnMaxWidth: "none" });
+  vm.runInNewContext(current.payload, current.context);
+
+  assert.equal(current.aiHomeColumn.getAttribute(CHAT_BODY_ATTRIBUTE), "full-screen");
+});
+
+test("keeps an AI home composer container inside a chat layout unmarked", () => {
+  const current = fixture({ fullScreenChat: true, chatComposerMarked: true });
+  vm.runInNewContext(current.payload, current.context);
+
+  assert.equal(current.messageHost.getAttribute(CHAT_BODY_ATTRIBUTE), "full-screen");
+  assert.equal(current.chatTarget.parentElement.hasAttribute(CHAT_BODY_ATTRIBUTE), false);
+  assert.equal(current.context.document.querySelectorAll(CHAT_BODY_SELECTOR).length, 1);
+});
+
+test("routes zoom shortcuts to the full-screen chat on the Notion AI home", () => {
+  const current = fixture({ aiHome: true, storedContentZoom: "90" });
+  vm.runInNewContext(current.payload, current.context);
+
+  current.dispatch("keydown", keyboardEvent("Equal"));
+  const status = current.context.window.__NOTION_RESTYLE_STATE__.status();
+  assert.equal(status.fullScreenChatZoomPercent, 105);
+  assert.equal(status.contentZoomPercent, 90);
+  assert.equal(status.sidebarChatZoomPercent, 100);
+  assert.equal(current.storage.get(FULL_SCREEN_CHAT_ZOOM_STORAGE_KEY), "105");
+  assert.equal(current.nodes.get(ZOOM_TOAST_ID).textContent, "全屏 AI 对话缩放 105%");
 });
 
 test("zooms only the marked message host in sidebar and full-screen chat", () => {

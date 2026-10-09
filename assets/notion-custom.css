@@ -67,6 +67,13 @@ div.notion-agent-writer-ui {
 }
 
 /* === 正文内容字体 === */
+/* Notion 新的 AI 全屏首页（/ai）使用哈希类名 DOM，不含 .layout-chat；
+   以输入框容器为锚点覆盖整块内容区，并排除旧版聊天布局与左侧边栏 */
+:where(
+  div:has([data-notion-chat-input-container]):not(
+    :has(.layout-chat, .chat_sidebar, .notion-sidebar-container)
+  )
+) *,
 div.notion-page-content *,
 div.notion-collection-view-body :where(div.notion-page-block:not(.notion-collection-item)) *,
 div.notion-collection-item *,

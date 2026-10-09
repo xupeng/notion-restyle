@@ -79,9 +79,25 @@ test("maps role-based CJK font families to the intended local sources", () => {
   assert.doesNotMatch(css, /local\(["']LXGW WenKai Screen["']\)/);
 });
 
+test("styles the Notion AI home screen that has no chat layout classes", () => {
+  const homeRule = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)]
+    .find((match) => match[1].includes("data-notion-chat-input-container"));
+
+  assert.ok(homeRule, "missing the Notion AI home font rule");
+  assert.match(
+    homeRule[1],
+    /:where\(\s*div:has\(\[data-notion-chat-input-container\]\):not\(\s*:has\(\.layout-chat,\s*\.chat_sidebar,\s*\.notion-sidebar-container\)\s*\)\s*\)\s*\*/,
+  );
+  assert.match(
+    homeRule[2],
+    /font-family:\s*"Oxanium",\s*"Pridi",\s*"NotionRestyleBodyCJK",\s*"Noto Sans SC"/,
+  );
+  assert.match(homeRule[2], /line-height:\s*1\.8em\s*!important\s*;/);
+});
+
 test("applies the custom Latin font to the sidebar and keeps CJK fonts untouched", () => {
   const sidebarRule = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)]
-    .find((match) => match[1].includes(".notion-sidebar-container"));
+    .find((match) => /:where\(\s*\.notion-sidebar-container\s*\)/.test(match[1]));
 
   assert.ok(sidebarRule, "missing the sidebar font rule");
   assert.match(
