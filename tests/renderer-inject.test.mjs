@@ -28,6 +28,12 @@ const CHAT_EDITOR_SELECTOR = '[role="textbox"][contenteditable="true"], textarea
 const FEED_CONTENT_SELECTOR = "div.notion-peek-renderer div.notion-collection-view-body div.notion-page-block:not(.notion-collection-item):not(div.notion-page-block div.notion-page-block)";
 const FEED_PREVIEW_SELECTOR = `${FEED_CONTENT_SELECTOR} div[style*="overflow-y: hidden"][style*="max-height: 500px"]`;
 const AGENT_WRITER_CONTENT_SELECTOR = 'div.notion-agent-writer-ui div[role="group"].whenContentEditable';
+const PEEK_TABLE_SELECTOR = ["div.layout-center-peek", "div.layout-side-peek"]
+  .map((layout) => (
+    `${layout} div.notion-page-content div.notion-table-block:not(div.notion-table-block div.notion-table-block)`
+  ))
+  .join(",\n");
+const PEEK_TABLE_CONTENT_SELECTOR = `${PEEK_TABLE_SELECTOR} .notion-table-content > div.notion-table-block`;
 const EDIT_REFERENCE_BLOCK_SELECTOR = "div.notion-edit_reference-block:not(div.notion-edit_reference-block div.notion-edit_reference-block)";
 const EDIT_REFERENCE_PRIMARY_ACTION_SELECTOR = '[data-edit-reference-id] > :first-child > :last-child > [role="button"]:first-child';
 const CONTENT_DIVIDER_SELECTOR = [
@@ -911,6 +917,58 @@ test("supports reduced chat zoom and emits no chat rule at one hundred percent",
   );
   assert.equal(cssRuleBody(resetCss, "div.notion-agent-writer-ui"), null);
   assert.match(FEED_CONTENT_SELECTOR, /:not\(div\.notion-page-block div\.notion-page-block\)/);
+});
+
+test("keeps peek table shells unscaled while table contents follow body zoom", () => {
+  for (let percent = 60; percent <= 160; percent += 5) {
+    const current = fixture({ storedContentZoom: String(percent) });
+    vm.runInNewContext(current.payload, current.context);
+    const zoomCss = current.nodes.get(ZOOM_STYLE_ID).textContent;
+    const shellRule = cssRuleBody(zoomCss, PEEK_TABLE_SELECTOR);
+    const contentRule = cssRuleBody(zoomCss, PEEK_TABLE_CONTENT_SELECTOR);
+    if (percent === 100) {
+      assert.equal(shellRule, null);
+      assert.equal(contentRule, null);
+      continue;
+    }
+    const shellFactor = Number(shellRule.match(/zoom: ([\d.]+) !important/)[1]);
+    const contentFactor = Number(contentRule.match(/zoom: ([\d.]+) !important/)[1]);
+    assert.ok(Math.abs(percent / 100 * shellFactor - 1) < 1e-12);
+    assert.equal(contentFactor, percent / 100);
+    assert.doesNotMatch(shellRule + contentRule, /width|padding|margin|overflow|transform/);
+    assert.doesNotMatch(zoomCss, /(?:^|\n)div\.notion-table-block\s*\{/);
+    assert.doesNotMatch(zoomCss, /(?:^|\n)div\.notion-table-content\s*\{/);
+  }
+  assert.match(PEEK_TABLE_SELECTOR, /^div\.layout-center-peek div\.notion-page-content /);
+  for (const layout of ["center", "side"]) {
+    assert.match(PEEK_TABLE_SELECTOR, new RegExp(`^div\\.layout-${layout}-peek `, "m"));
+  }
+  assert.match(PEEK_TABLE_SELECTOR, /:not\(div\.notion-table-block div\.notion-table-block\)/);
+});
+
+test("updates peek table compensation with body zoom and removes it on reset", () => {
+  const current = fixture({ storedContentZoom: "125" });
+  vm.runInNewContext(current.payload, current.context);
+  const tableRules = () => {
+    const zoomCss = current.nodes.get(ZOOM_STYLE_ID).textContent;
+    return [
+      cssRuleBody(zoomCss, PEEK_TABLE_SELECTOR),
+      cssRuleBody(zoomCss, PEEK_TABLE_CONTENT_SELECTOR),
+    ];
+  };
+  assert.match(tableRules()[0], /zoom: 0\.8 !important/);
+  assert.match(tableRules()[1], /zoom: 1\.25 !important/);
+  const initial = tableRules();
+  current.dispatch("storage", { key: SIDEBAR_CHAT_ZOOM_STORAGE_KEY, newValue: "160" });
+  assert.deepEqual(tableRules(), initial);
+  current.dispatch("storage", { key: CONTENT_ZOOM_STORAGE_KEY, newValue: "80" });
+  assert.match(tableRules()[0], /zoom: 1\.25 !important/);
+  assert.match(tableRules()[1], /zoom: 0\.8 !important/);
+  current.dispatch("pointerdown", { target: current.contentTarget });
+  current.dispatch("keydown", keyboardEvent("Digit0"));
+  assert.deepEqual(tableRules(), [null, null]);
+  current.dispatch("keydown", keyboardEvent("Equal"));
+  assert.match(tableRules()[1], /zoom: 1\.05 !important/);
 });
 
 test("keeps the native Feed preview control measurable while content is enlarged", () => {
