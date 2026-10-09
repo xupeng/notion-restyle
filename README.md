@@ -1,10 +1,13 @@
 # Notion Restyle
 
-Notion Restyle 是一个为 macOS Notion Desktop 注入个人自定义样式的工具。它通过
-Chrome DevTools Protocol（CDP）在 renderer 内存中加载 CSS，不修改 Notion
-安装包、`app.asar`、代码签名或 `~/.config/notion`。
+Notion Restyle 为 macOS Notion Desktop 和浏览器中的 Notion 提供个人自定义样式与
+正文／AI 对话独立缩放。桌面版通过 Chrome DevTools Protocol（CDP）在 renderer
+内存中加载 CSS，不修改 Notion 安装包、`app.asar`、代码签名或 `~/.config/notion`；
+浏览器版通过 ScriptCat 用户脚本运行，共用同一份 CSS 和缩放源码。
 
-## 要求
+**浏览器安装：** [安装 Notion Restyle 用户脚本（ScriptCat）](https://raw.githubusercontent.com/xupeng/notion-restyle/master/userscripts/notion-restyle.user.js)
+
+## 桌面版要求
 
 - macOS
 - 官方 Notion Desktop（Bundle ID 为 `notion.id`）
@@ -15,7 +18,7 @@ Chrome DevTools Protocol（CDP）在 renderer 内存中加载 CSS，不修改 No
 Node。也可以设置 `NOTION_RESTYLE_NODE` 指定 runtime；非标准 Notion 安装路径可用
 `NOTION_APP_BUNDLE` 指定。
 
-## 使用
+## 桌面版使用
 
 推荐在 Raycast 中运行 **Notion with Restyle**。Script Command 位于：
 
@@ -40,6 +43,105 @@ Raycast 的 Script Commands 目录应包含：
 ```text
 ~/Library/Application Support/NotionRestyle
 ```
+
+## 浏览器版（ScriptCat）
+
+构建时需要 Node.js 22 或更高版本；运行时只需要浏览器和 ScriptCat，不需要 macOS、
+Notion Desktop、CDP 或后台 watcher。
+
+### 从 GitHub 安装（推荐）
+
+先安装并启用 ScriptCat，然后点击：
+
+**[安装 Notion Restyle 用户脚本](https://raw.githubusercontent.com/xupeng/notion-restyle/master/userscripts/notion-restyle.user.js)**
+
+链接指向公开仓库 `master` 分支上 `userscripts/notion-restyle.user.js` 的 Raw 文件，
+不是 GitHub 代码预览页。ScriptCat 识别后确认安装，再刷新 Notion 标签页。
+如果之前已在 Stylus 中安装本项目的 CSS，请关闭那份样式，避免重复维护。
+脚本内置同一 Raw 地址的 `@updateURL` 和 `@downloadURL`；发布更高版本后，可在
+ScriptCat 中检查更新。**文件首次提交并推送到 `master` 后，安装链接才会生效。**
+
+### 本地构建与安装
+
+在项目根目录运行：
+
+```bash
+npm run build:userscript
+```
+
+生成文件位于 `userscripts/notion-restyle.user.js`，纳入 Git 版本管理。在 ScriptCat 管理界面中新建普通用户脚本，
+用生成文件的**全部内容**替换默认模板，保存并启用，然后刷新 Notion 标签页。
+本地构建同样内置 GitHub 更新地址；未发布的本地修改不会自动上传到 GitHub。
+
+生成脚本内嵌 `assets/notion-custom.css` 与 `assets/renderer-inject.js`，不会运行时下载
+CSS 或 JS，也不需要 `eval`、网络请求权限或页面内部对象访问。已有的 Google Fonts
+加载仍需要网络，本机中文字体与代码字体要求见下文。
+
+适用地址限定为 HTTPS 的 `app.notion.com`、`www.notion.so` 和 `notion.so`，只在
+顶层页面运行，不匹配 `www.notion.com` 官网或 `*.notion.site` 发布站点。
+脚本使用 `document-end` 和 ScriptCat 的 `@inject-into content` 模式，DOM 加载完成后
+运行，后续 SPA 内容变化由现有 `MutationObserver` 处理。唯一申请的 GM 权限是
+`GM_registerMenuCommand`，用于添加“暂时停用当前页（刷新恢复）”菜单；停用会清理
+样式、快捷键与观察器，不删除缩放偏好。要长期停用，请在 ScriptCat 中禁用脚本并刷新。
+这些元信息的行为以 [ScriptCat 官方文档](https://docs.scriptcat.org/docs/dev/meta/) 为准。
+
+### 修改与发布更新
+
+继续只编辑 `assets/notion-custom.css` 和 `assets/renderer-inject.js`，不要修改生成文件。
+每次发布浏览器更新：
+
+1. 递增 `package.json` 的三段数字版本（例如 `0.1.0` → `0.1.1`）。
+2. 运行 `npm run build:userscript`，生成包含新版本的安装文件。
+3. 运行 `npm test`，验证源码、版本和发布产物一致。
+4. 将源文件、`package.json` 与 `userscripts/notion-restyle.user.js` 一起提交并推送到 `master`。
+5. 在 ScriptCat 中检查更新并刷新 Notion；扩展的定时更新检查按其自身设置执行。
+
+`npm test` 会先运行只读的 `npm run check:userscript`。如果产物缺失或与当前源码、
+版本、默认更新地址不一致，检查会失败并提示重新构建，不会自动覆盖文件。
+这防止只提交源码而遗漏安装文件；版本号仍需在每次发布时主动递增。
+
+只在本地试用修改时，可重新构建并手动替换 ScriptCat 中的脚本，无需推送。
+**当前不提供浏览器本地热更新**；桌面版已有的 CSS 热更新不受影响。
+
+默认 `@version` 使用 `package.json` 的版本，默认更新地址指向本仓库。若要发布到
+fork 或其他 HTTPS 地址，仍可显式覆盖版本与更新地址：
+
+```bash
+npm run build:userscript -- --version 0.1.1 --update-url https://example.com/notion-restyle.user.js
+```
+
+上面的地址仅为占位示例，必须替换成你实际发布 `.user.js` 的地址。覆盖参数只适用于
+该次构建；fork 应同时修改构建脚本中的默认地址、README 安装链接及相关测试，保证
+一致性检查使用自己的发布配置。构建不会自动提交、推送或发布文件。
+
+### 提 PR 时自动同步产物
+
+本仓库的 `AGENTS.md` 要求 coding agent 在每次创建或更新 PR、提交之前执行：
+
+```bash
+npm run prepare:pr
+```
+
+该命令依次构建用户脚本并运行 `npm test`。Agent 随后审查生成文件的差异，将变化的
+`userscripts/notion-restyle.user.js` 与本次源码一同显式加入提交，避免 PR 只带源码。
+若 PR 改变浏览器脚本行为或生成代码，还须确保 `package.json` 版本高于 PR 目标分支；
+同一个 PR 已经递增过版本时不重复递增，纯文档修改不要求版本或产物产生变化。
+
+这是项目级的 agent 提 PR 规则，不是全局 Git hook 或 GitHub 自动提交任务。
+手动使用 `gh pr create` 或网页提 PR 时，也应先执行上面的命令并提交生成文件。
+命令本身不会暂存、提交或推送任何文件；遇到会混入或覆盖无关工作的情况应先停止。
+`npm test` 仍保持只读检查，避免测试自动重建而掩盖漏提交产物的问题。
+
+### 缩放与存储
+
+浏览器版沿用下文的缩放快捷键、三个独立比例、布局修正和本地存储键。
+比例存储在当前 Notion 页面来源的 `localStorage` 中，不通过 ScriptCat 云同步；
+同一来源、同一浏览器配置文件的标签页共享偏好。不同来源（例如 `www.notion.so`
+与 `app.notion.com`）、不同浏览器配置文件，以及桌面版与浏览器版之间不自动同步。
+
+安装后建议检查正文、全屏 AI 和侧栏 AI 的缩放与刷新后持久化，以及 `Show changes`、
+`Hide changes`、`Undo` 和 peek 表格的原生交互。如果快捷键被浏览器或系统优先占用，
+需要先解除对应冲突；字体加载和 Notion 的浏览器 DOM 也需要在实际页面验证。
 
 ## 自定义样式
 
@@ -141,6 +243,7 @@ notarization metadata。它不会修改 `.app` 内容，因此不会进一步改
 
 ```bash
 npm test
+npm run check:userscript
 npm run doctor
 ```
 
@@ -149,6 +252,7 @@ Notion。
 
 ## 当前版本边界
 
-仅支持当前官方 macOS Notion 和 `https://app.notion.com` renderer，不保留旧域名或
-旧 Electron 版本的兼容分支。Notion 改变页面域名、CDP 行为或 DOM 结构后，需要更新
-target 校验或自定义 CSS 选择器。
+桌面注入仅支持当前官方 macOS Notion 和 `https://app.notion.com` renderer，不保留
+旧域名或旧 Electron 版本的兼容分支；浏览器用户脚本另匹配上文列出的工作区域名。
+Notion 改变页面域名、CDP 行为或 DOM 结构后，需要更新 target 校验、用户脚本匹配范围
+或自定义选择器。浏览器生成与模拟 DOM 测试不能替代真实 ScriptCat／Notion 页面验证。

@@ -1,10 +1,11 @@
 #!/usr/bin/env node
 
-import { createHash } from "node:crypto";
 import { watch as watchFs } from "node:fs";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+
+import { readRendererPayload } from "./renderer-payload.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const LOOPBACK_HOSTS = new Set(["127.0.0.1", "localhost", "[::1]"]);
@@ -258,20 +259,6 @@ async function connectNotionTargets(port, timeoutMs) {
   throw new Error(`No verified Notion renderer: ${lastError.message}`);
 }
 
-async function buildPayload() {
-  const [css, template] = await Promise.all([
-    fs.readFile(path.join(root, "assets", "notion-custom.css"), "utf8"),
-    fs.readFile(path.join(root, "assets", "renderer-inject.js"), "utf8"),
-  ]);
-  const revision = createHash("sha256").update(css).update(template).digest("hex").slice(0, 20);
-  return {
-    payload: template
-      .replace("__NOTION_RESTYLE_CSS_JSON__", JSON.stringify(css))
-      .replace("__NOTION_RESTYLE_VERSION_JSON__", JSON.stringify(revision)),
-    revision,
-  };
-}
-
 export function earlyPayloadFor(payload, revision) {
   return `(() => {
     const generation = ${JSON.stringify(revision)};
@@ -304,7 +291,7 @@ async function statusOf(session) {
 
 async function runOneShot(options) {
   const connected = await connectNotionTargets(options.port, options.timeoutMs);
-  const built = options.mode === "once" ? await buildPayload() : null;
+  const built = options.mode === "once" ? await readRendererPayload() : null;
   const results = [];
   for (const { target, session } of connected) {
     try {
@@ -324,7 +311,7 @@ async function runOneShot(options) {
 }
 
 async function runWatch(options) {
-  let built = await buildPayload();
+  let built = await readRendererPayload();
   const sessions = new Map();
   let stopping = false;
   let refreshTimer = null;
@@ -346,7 +333,7 @@ async function runWatch(options) {
   };
 
   const refresh = async () => {
-    const next = await buildPayload();
+    const next = await readRendererPayload();
     if (next.revision === built.revision) return;
     built = next;
     await Promise.all([...sessions.values()].map((record) => install(record).catch((error) => {
