@@ -1,9 +1,13 @@
 {
   "name": "notion-restyle",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "type": "module",
   "scripts": {
+    "build:userscript": "node scripts/build-userscript.mjs",
+    "check:userscript": "node scripts/build-userscript.mjs --check",
+    "prepare:pr": "npm run build:userscript && npm test",
+    "pretest": "npm run check:userscript",
     "test": "node --test",
     "doctor": "./scripts/doctor-macos.sh"
   },

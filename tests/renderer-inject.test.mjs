@@ -5,11 +5,15 @@ import test from "node:test";
 import vm from "node:vm";
 import { fileURLToPath } from "node:url";
 
+import { renderUserscript } from "../scripts/build-userscript.mjs";
+import { readRendererPayload } from "../scripts/renderer-payload.mjs";
+
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const [template, css] = await Promise.all([
   fs.readFile(path.join(root, "assets", "renderer-inject.js"), "utf8"),
   fs.readFile(path.join(root, "assets", "notion-custom.css"), "utf8"),
 ]);
+const browserPayload = await readRendererPayload();
 
 const ZOOM_STYLE_ID = "notion-restyle-content-zoom-style";
 const ZOOM_TOAST_ID = "notion-restyle-content-zoom-toast";
@@ -383,6 +387,54 @@ function keyboardEvent(code, overrides = {}) {
     ...overrides,
   };
 }
+
+function installUserscript(current, hostname = "app.notion.com") {
+  const menus = [];
+  current.context.window.top = current.context.window.self = current.context.window;
+  current.context.location = { protocol: "https:", hostname, port: "" };
+  current.context.GM_registerMenuCommand = (label, callback) => menus.push({ label, callback });
+  const script = renderUserscript({ ...browserPayload, version: "0.1.0" });
+  vm.runInNewContext(script, current.context);
+  return { menus, script };
+}
+
+test("generated userscript applies fonts and keeps body and sidebar zoom independent on all supported hosts", () => {
+  for (const host of ["app.notion.com", "www.notion.so", "notion.so"]) {
+    const current = fixture({ storedContentZoom: "120", storedSidebarChatZoom: "130" });
+    installUserscript(current, host);
+    assert.equal(current.nodes.get("notion-restyle-style").textContent, css);
+    current.dispatch("keydown", keyboardEvent("Equal", { target: current.contentTarget }));
+    current.dispatch("keydown", keyboardEvent("Minus", { target: current.chatTarget }));
+    const status = current.context.window.__NOTION_RESTYLE_STATE__.status();
+    assert.equal(status.contentZoomPercent, 125);
+    assert.equal(status.sidebarChatZoomPercent, 125);
+    assert.equal(status.fullScreenChatZoomPercent, 100);
+    assert.equal(current.storage.get(CONTENT_ZOOM_STORAGE_KEY), "125");
+    assert.equal(current.storage.get(SIDEBAR_CHAT_ZOOM_STORAGE_KEY), "125");
+  }
+});
+
+test("generated userscript retains full-screen targeting, SPA reconciliation, reinjection and menu cleanup", () => {
+  const current = fixture({ fullScreenChat: true });
+  const { menus, script } = installUserscript(current);
+  current.dispatch("keydown", keyboardEvent("Equal", { target: current.contentTarget }));
+  assert.equal(current.context.window.__NOTION_RESTYLE_STATE__.status().fullScreenChatZoomPercent, 105);
+  assert.equal(current.context.window.__NOTION_RESTYLE_STATE__.status().contentZoomPercent, 100);
+  const replacement = current.replaceMessageHost();
+  current.triggerMutation();
+  current.flushAnimationFrames();
+  assert.equal(replacement.getAttribute(CHAT_BODY_ATTRIBUTE), "full-screen");
+  vm.runInNewContext(script, current.context);
+  assert.equal(menus.length, 1);
+  assert.equal(current.listeners.get("keydown").size, 1);
+  assert.equal([...current.observers].filter((observer) => observer.connected).length, 1);
+  menus[0].callback();
+  assert.equal(current.nodes.has("notion-restyle-style"), false);
+  assert.equal(current.nodes.has(ZOOM_STYLE_ID), false);
+  assert.equal(replacement.hasAttribute(CHAT_BODY_ATTRIBUTE), false);
+  assert.equal(current.listeners.get("keydown").size, 0);
+  assert.equal(current.storage.get(FULL_SCREEN_CHAT_ZOOM_STORAGE_KEY), "105");
+});
 
 test("the copied CSS retains the existing Notion scopes and Google Fonts import", () => {
   assert.match(css, /fonts\.googleapis\.com/);
