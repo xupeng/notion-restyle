@@ -16,6 +16,12 @@
   const FEED_CONTENT_SELECTOR = "div.notion-peek-renderer div.notion-collection-view-body div.notion-page-block:not(.notion-collection-item):not(div.notion-page-block div.notion-page-block)";
   const FEED_PREVIEW_SELECTOR = `${FEED_CONTENT_SELECTOR} div[style*="overflow-y: hidden"][style*="max-height: 500px"]`;
   const AGENT_WRITER_CONTENT_SELECTOR = 'div.notion-agent-writer-ui div[role="group"].whenContentEditable';
+  const PEEK_TABLE_SELECTOR = ["div.layout-center-peek", "div.layout-side-peek"]
+    .map((layout) => (
+      `${layout} div.notion-page-content div.notion-table-block:not(div.notion-table-block div.notion-table-block)`
+    ))
+    .join(",\n");
+  const PEEK_TABLE_CONTENT_SELECTOR = `${PEEK_TABLE_SELECTOR} .notion-table-content > div.notion-table-block`;
   const EDIT_REFERENCE_BLOCK_SELECTOR = "div.notion-edit_reference-block:not(div.notion-edit_reference-block div.notion-edit_reference-block)";
   const EDIT_REFERENCE_PRIMARY_ACTION_SELECTOR = '[data-edit-reference-id] > :first-child > :last-child > [role="button"]:first-child';
   const CONTENT_DIVIDER_SELECTOR = [
@@ -114,6 +120,14 @@ ${selector} {
 }
 `
     );
+    // Peek tables have a viewport-sized shell with native page gutters.
+    // Keep that shell unscaled, then restore content zoom inside its scroller.
+    const peekTableCss = contentZoomPercent === DEFAULT_ZOOM_PERCENT
+      ? ""
+      : [
+        zoomRule(PEEK_TABLE_SELECTOR, DEFAULT_ZOOM_PERCENT * DEFAULT_ZOOM_PERCENT / contentZoomPercent),
+        zoomRule(PEEK_TABLE_CONTENT_SELECTOR, contentZoomPercent),
+      ].join("");
     const inverseZoomRule = (bodySelector, percent) => (
       percent === DEFAULT_ZOOM_PERCENT
         ? ""
@@ -138,6 +152,7 @@ ${bodySelector} ${EDIT_REFERENCE_PRIMARY_ACTION_SELECTOR} {
 div.notion-page-content {
   zoom: ${contentFactor} !important;
 }
+${peekTableCss}
 ${FEED_CONTENT_SELECTOR} {
   zoom: ${contentFactor} !important;
 }
