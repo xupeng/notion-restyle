@@ -8,6 +8,8 @@
   const FULL_SCREEN_CHAT_ZOOM_STORAGE_KEY = "notion-restyle.fullScreenChatZoomPercent.v1";
   const SIDEBAR_CHAT_ZOOM_STORAGE_KEY = "notion-restyle.sidebarChatZoomPercent.v1";
   const CHAT_ROOT_SELECTOR = ".layout-chat, .chat_sidebar";
+  // Notion 的 AI 全屏新会话首页（/ai）不使用 .layout-chat，输入框容器是唯一稳定锚点。
+  const AI_HOME_COMPOSER_SELECTOR = "[data-notion-chat-input-container]";
   const CHAT_BODY_ATTRIBUTE = "data-notion-restyle-chat-zoom-body";
   const CHAT_BODY_SELECTOR = `[${CHAT_BODY_ATTRIBUTE}]`;
   const FULL_SCREEN_CHAT_BODY_SELECTOR = `[${CHAT_BODY_ATTRIBUTE}="full-screen"]`;
@@ -222,6 +224,22 @@ ${chatZoomCss}
     return null;
   };
 
+  // The AI home keeps Notion's max-width on the column above the composer, so zooming that
+  // column's children scales the greeting and the composer without widening either of them.
+  const aiHomeHostFor = (composer) => {
+    const fallback = composer.parentElement;
+    for (let node = fallback; node; node = node.parentElement) {
+      let maxWidth;
+      try {
+        maxWidth = getComputedStyle(node)?.maxWidth;
+      } catch {
+        return fallback;
+      }
+      if (typeof maxWidth === "string" && /^\d+(?:\.\d+)?px$/.test(maxWidth)) return node;
+    }
+    return fallback;
+  };
+
   const reconcileChatBodies = () => {
     const nextMarkedChatBodies = new Map();
     const roots = [...document.querySelectorAll(CHAT_ROOT_SELECTOR)].filter((root) => (
@@ -234,6 +252,12 @@ ${chatZoomCss}
         messageHost,
         root.matches(".chat_sidebar") ? "sidebar" : "full-screen",
       );
+    }
+    // The new AI home has no chat layout classes; its composer still uses the full-screen zoom.
+    for (const composer of document.querySelectorAll(AI_HOME_COMPOSER_SELECTOR)) {
+      if (composer.closest(CHAT_ROOT_SELECTOR)) continue;
+      const homeHost = aiHomeHostFor(composer);
+      if (homeHost) nextMarkedChatBodies.set(homeHost, "full-screen");
     }
     for (const [messageHost, chatType] of nextMarkedChatBodies) {
       if (messageHost.getAttribute(CHAT_BODY_ATTRIBUTE) !== chatType) {
@@ -325,11 +349,15 @@ ${chatZoomCss}
   };
 
   const hasVisibleFullScreenChat = () => (
-    [...document.querySelectorAll(".layout-chat")].some((node) => (
+    // The AI home ships no chat layout classes: a visible composer outside every chat layout
+    // still belongs to the full-screen chat.
+    [
+      ...document.querySelectorAll(".layout-chat"),
+      ...document.querySelectorAll(AI_HOME_COMPOSER_SELECTOR),
+    ].some((node) => (
       typeof node?.closest === "function"
       && !node.closest(".chat_sidebar")
-      && typeof node.getClientRects === "function"
-      && node.getClientRects().length > 0
+      && isVisibleElement(node)
     ))
   );
 

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Notion Restyle
 // @namespace    https://github.com/xupeng/notion-restyle
-// @version      0.1.1
+// @version      0.1.2
 // @description  Notion typography and independent content / AI chat zoom
 // @homepageURL  https://github.com/xupeng/notion-restyle
 // @match        https://app.notion.com/*
@@ -35,6 +35,8 @@
   const FULL_SCREEN_CHAT_ZOOM_STORAGE_KEY = "notion-restyle.fullScreenChatZoomPercent.v1";
   const SIDEBAR_CHAT_ZOOM_STORAGE_KEY = "notion-restyle.sidebarChatZoomPercent.v1";
   const CHAT_ROOT_SELECTOR = ".layout-chat, .chat_sidebar";
+  // Notion 的 AI 全屏新会话首页（/ai）不使用 .layout-chat，输入框容器是唯一稳定锚点。
+  const AI_HOME_COMPOSER_SELECTOR = "[data-notion-chat-input-container]";
   const CHAT_BODY_ATTRIBUTE = "data-notion-restyle-chat-zoom-body";
   const CHAT_BODY_SELECTOR = `[${CHAT_BODY_ATTRIBUTE}]`;
   const FULL_SCREEN_CHAT_BODY_SELECTOR = `[${CHAT_BODY_ATTRIBUTE}="full-screen"]`;
@@ -249,6 +251,22 @@ ${chatZoomCss}
     return null;
   };
 
+  // The AI home keeps Notion's max-width on the column above the composer, so zooming that
+  // column's children scales the greeting and the composer without widening either of them.
+  const aiHomeHostFor = (composer) => {
+    const fallback = composer.parentElement;
+    for (let node = fallback; node; node = node.parentElement) {
+      let maxWidth;
+      try {
+        maxWidth = getComputedStyle(node)?.maxWidth;
+      } catch {
+        return fallback;
+      }
+      if (typeof maxWidth === "string" && /^\d+(?:\.\d+)?px$/.test(maxWidth)) return node;
+    }
+    return fallback;
+  };
+
   const reconcileChatBodies = () => {
     const nextMarkedChatBodies = new Map();
     const roots = [...document.querySelectorAll(CHAT_ROOT_SELECTOR)].filter((root) => (
@@ -261,6 +279,12 @@ ${chatZoomCss}
         messageHost,
         root.matches(".chat_sidebar") ? "sidebar" : "full-screen",
       );
+    }
+    // The new AI home has no chat layout classes; its composer still uses the full-screen zoom.
+    for (const composer of document.querySelectorAll(AI_HOME_COMPOSER_SELECTOR)) {
+      if (composer.closest(CHAT_ROOT_SELECTOR)) continue;
+      const homeHost = aiHomeHostFor(composer);
+      if (homeHost) nextMarkedChatBodies.set(homeHost, "full-screen");
     }
     for (const [messageHost, chatType] of nextMarkedChatBodies) {
       if (messageHost.getAttribute(CHAT_BODY_ATTRIBUTE) !== chatType) {
@@ -352,11 +376,15 @@ ${chatZoomCss}
   };
 
   const hasVisibleFullScreenChat = () => (
-    [...document.querySelectorAll(".layout-chat")].some((node) => (
+    // The AI home ships no chat layout classes: a visible composer outside every chat layout
+    // still belongs to the full-screen chat.
+    [
+      ...document.querySelectorAll(".layout-chat"),
+      ...document.querySelectorAll(AI_HOME_COMPOSER_SELECTOR),
+    ].some((node) => (
       typeof node?.closest === "function"
       && !node.closest(".chat_sidebar")
-      && typeof node.getClientRects === "function"
-      && node.getClientRects().length > 0
+      && isVisibleElement(node)
     ))
   );
 
@@ -451,7 +479,7 @@ ${chatZoomCss}
 
   window[STATE_KEY] = { cleanup, status, version };
   return status();
-})("/* Notion 自定义字体配置 */\n@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@100..900&family=Oxanium:wght@200..800&family=Pridi:wght@200;300;400;500;600;700&family=Signika:wght@300..700&display=swap');\n\n/* === Notion AI 形象：保留静态外观，禁用装饰动画 === */\n[id^=\"agent-acc-\"] {\n  animation: none !important;\n}\n\n/* === 中文字体映射 === */\n/* 正文：400/500 使用霞鹜文楷 Medium，超过 500 使用霞鹜臻楷 */\n@font-face {\n  font-family: \"NotionRestyleBodyCJK\";\n  src: local(\"LXGWWenKai-Light\");\n  font-weight: 300;\n}\n\n@font-face {\n  font-family: \"NotionRestyleBodyCJK\";\n  src: local(\"LXGWWenKai-Medium\");\n  font-weight: 400;\n}\n\n@font-face {\n  font-family: \"NotionRestyleBodyCJK\";\n  src: local(\"LXGWWenKai-Medium\");\n  font-weight: 500;\n}\n\n@font-face {\n  font-family: \"NotionRestyleBodyCJK\";\n  src: local(\"LXGW ZhenKai GB\"), local(\"LXGWZhenKaiGB\"), local(\"LXGW ZhenKai\"), local(\"LXGWZhenKai-Regular\");\n  font-style: normal;\n  font-weight: 501 900;\n  font-display: swap;\n}\n\n/* 标题：按语义字重使用仓耳云黑 */\n@font-face {\n  font-family: \"NotionRestyleHeadingCJK\";\n  src: local(\"TsangerYunHei-W04\");\n  font-weight: 400;\n}\n\n@font-face {\n  font-family: \"NotionRestyleHeadingCJK\";\n  src: local(\"TsangerYunHei-W05\");\n  font-weight: 500;\n}\n\n@font-face {\n  font-family: \"NotionRestyleHeadingCJK\";\n  src: local(\"TsangerYunHei-W06\");\n  font-weight: 600;\n}\n\n@font-face {\n  font-family: \"NotionRestyleHeadingCJK\";\n  src: local(\"TsangerYunHei-W07\");\n  font-weight: 700;\n}\n\n/* === 右键 Agent 弹层背景与宽度 === */\ndiv.notion-agent-writer-ui {\n  background-color: var(--c-greBacPri) !important;\n  width: calc(100% - 48px) !important;\n  margin-inline: auto !important;\n}\n\n/* === 正文内容字体 === */\ndiv.notion-page-content *,\ndiv.notion-collection-view-body :where(div.notion-page-block:not(.notion-collection-item)) *,\ndiv.notion-collection-item *,\ndiv.layout-chat *,\ndiv.chat_sidebar *,\ndiv.notion-agent-writer-ui :where(div[role=\"group\"].whenContentEditable) * {\n  font-family: \"Oxanium\", \"Pridi\", \"NotionRestyleBodyCJK\", \"Noto Sans SC\", STKaiti, -apple-system,\n    BlinkMacSystemFont, \"Segoe UI\", Helvetica, \"Apple Color Emoji\",\n    Arial, sans-serif, \"Segoe UI Emoji\", \"Segoe UI Symbol\" !important;\n  font-weight: 500;\n  line-height: 1.8em !important;\n}\n\n/* === 侧边栏字体 === */\n/* 英文/数字沿用正文的 Oxanium→Pridi 字体栈；中文字符不在该栈内，继续使用系统默认中文字体 */\n:where(.notion-sidebar-container) * {\n  font-family: \"Oxanium\", \"Pridi\", ui-sans-serif, -apple-system, \"system-ui\",\n    \"Segoe UI Variable Display\", \"Segoe UI\", Helvetica, Arial, sans-serif !important;\n}\n\n/* Feed popup 的内容块使用普通正文的 16px 基准字号 */\ndiv.notion-peek-renderer div.notion-collection-view-body\n  :where(div.notion-page-block:not(.notion-collection-item):not(div.notion-page-block div.notion-page-block))\n  :where(div.notion-selectable:not(.notion-page-block)) {\n  font-size: 16px !important;\n}\n\n/* 右键 Agent 生成内容比普通正文稍小，但继续跟随正文缩放 */\ndiv.notion-agent-writer-ui :where(div[role=\"group\"].whenContentEditable)\n  :where(div.notion-selectable:not(.notion-page-block)) {\n  font-size: 13px !important;\n}\n\n/* === 分隔符：保留整行交互区域，只缩短并居中可见横线 === */\ndiv.notion-divider-block [role=\"separator\"] {\n  width: 100px !important;\n  height: 2px !important;\n  margin-inline: auto !important;\n}\n\n/* === 页面标题字体 === */\nh1[aria-roledescription=\"page title\"],\nh1[aria-roledescription=\"page title\"] * {\n  font-family: \"Signika\", \"NotionRestyleHeadingCJK\", \"Noto Sans SC\", \"PingFang SC\", sans-serif !important;\n  font-weight: 700 !important;\n}\n\n/* === 标题字体 === */\n/* 仅将真实标题块设为标题样式，避免 Feed 预览中的正文被整体加粗 */\ndiv.notion-header-block span,\ndiv.notion-header-block div,\ndiv.notion-header-block h1,\ndiv.notion-header-block h2,\ndiv.notion-header-block h3,\ndiv.notion-sub_header-block span,\ndiv.notion-sub_header-block div,\ndiv.notion-sub_header-block h1,\ndiv.notion-sub_header-block h2,\ndiv.notion-sub_header-block h3,\ndiv.notion-sub_sub_header-block span,\ndiv.notion-sub_sub_header-block div,\ndiv.notion-sub_sub_header-block h1,\ndiv.notion-sub_sub_header-block h2,\ndiv.notion-sub_sub_header-block h3 {\n  font-family: \"Pridi1\", \"Signika\", \"Oswald\", \"Space Grotesk\", \"NotionRestyleHeadingCJK\", \"Noto Sans SC\", \"PingFang SC\" !important;\n  font-weight: 500 !important;\n}\n\n/* 页面卡片标题使用标题字体，但保留 Notion 自己设置的标题字重 */\ndiv.notion-page-block:not(.notion-collection-item) a > div[role=\"button\"],\ndiv.notion-page-block:not(.notion-collection-item) a > div[role=\"button\"] * {\n  font-family: \"Pridi1\", \"Signika\", \"Oswald\", \"Space Grotesk\", \"NotionRestyleHeadingCJK\", \"Noto Sans SC\", \"PingFang SC\" !important;\n}\n\n/* === 数据库卡片字体 === */\n/* notion-page-block 也用于卡片标题；在卡片内恢复正文的常规字重 */\ndiv.notion-collection-item.notion-collection-item,\ndiv.notion-collection-item.notion-collection-item * {\n  font-family: \"Oxanium\", \"Pridi\", \"NotionRestyleBodyCJK\", \"Noto Sans SC\", STKaiti, -apple-system,\n    BlinkMacSystemFont, \"Segoe UI\", Helvetica, \"Apple Color Emoji\",\n    Arial, sans-serif, \"Segoe UI Emoji\", \"Segoe UI Symbol\" !important;\n  font-weight: 400 !important;\n}\n\n/* 卡片内的页面图标保留 Notion 的紧凑行高，避免 emoji 被正文行高压到文字下方 */\ndiv.notion-collection-item .notion-record-icon,\ndiv.notion-collection-item .notion-record-icon * {\n  line-height: 1 !important;\n}\n\n/* === 数据库属性字体 === */\n/* 页面标题容器也包住侧栏属性；普通属性使用正文样式，保留显式 font-weight */\ndiv.notion-page-block [role=\"row\"] [role=\"cell\"] div,\ndiv.notion-page-block [role=\"row\"] [role=\"cell\"] span {\n  font-family: \"Oxanium\", \"Pridi\", \"NotionRestyleBodyCJK\", \"Noto Sans SC\", STKaiti, -apple-system,\n    BlinkMacSystemFont, \"Segoe UI\", Helvetica, \"Apple Color Emoji\",\n    Arial, sans-serif, \"Segoe UI Emoji\", \"Segoe UI Symbol\" !important;\n}\n\ndiv.notion-page-block [role=\"row\"] [role=\"cell\"] div:not([style*=\"font-weight\"]),\ndiv.notion-page-block [role=\"row\"] [role=\"cell\"] span:not([style*=\"font-weight\"]) {\n  font-weight: 400 !important;\n}\n\n/* === 代码块字体（启用连字） === */\ndiv.notion-code-block [data-content-editable-leaf],\ndiv.notion-code-block [data-content-editable-leaf] * {\n  font-family: \"Cascadia Code NF\", Consolas, \"NotionRestyleBodyCJK\", \"Noto Sans SC\", monospace !important;\n  font-feature-settings: \"liga\" 1, \"calt\" 1;\n}\n", "3fda2e11f6e4a5e2ee33")
+})("/* Notion 自定义字体配置 */\n@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@100..900&family=Oxanium:wght@200..800&family=Pridi:wght@200;300;400;500;600;700&family=Signika:wght@300..700&display=swap');\n\n/* === Notion AI 形象：保留静态外观，禁用装饰动画 === */\n[id^=\"agent-acc-\"] {\n  animation: none !important;\n}\n\n/* === 中文字体映射 === */\n/* 正文：400/500 使用霞鹜文楷 Medium，超过 500 使用霞鹜臻楷 */\n@font-face {\n  font-family: \"NotionRestyleBodyCJK\";\n  src: local(\"LXGWWenKai-Light\");\n  font-weight: 300;\n}\n\n@font-face {\n  font-family: \"NotionRestyleBodyCJK\";\n  src: local(\"LXGWWenKai-Medium\");\n  font-weight: 400;\n}\n\n@font-face {\n  font-family: \"NotionRestyleBodyCJK\";\n  src: local(\"LXGWWenKai-Medium\");\n  font-weight: 500;\n}\n\n@font-face {\n  font-family: \"NotionRestyleBodyCJK\";\n  src: local(\"LXGW ZhenKai GB\"), local(\"LXGWZhenKaiGB\"), local(\"LXGW ZhenKai\"), local(\"LXGWZhenKai-Regular\");\n  font-style: normal;\n  font-weight: 501 900;\n  font-display: swap;\n}\n\n/* 标题：按语义字重使用仓耳云黑 */\n@font-face {\n  font-family: \"NotionRestyleHeadingCJK\";\n  src: local(\"TsangerYunHei-W04\");\n  font-weight: 400;\n}\n\n@font-face {\n  font-family: \"NotionRestyleHeadingCJK\";\n  src: local(\"TsangerYunHei-W05\");\n  font-weight: 500;\n}\n\n@font-face {\n  font-family: \"NotionRestyleHeadingCJK\";\n  src: local(\"TsangerYunHei-W06\");\n  font-weight: 600;\n}\n\n@font-face {\n  font-family: \"NotionRestyleHeadingCJK\";\n  src: local(\"TsangerYunHei-W07\");\n  font-weight: 700;\n}\n\n/* === 右键 Agent 弹层背景与宽度 === */\ndiv.notion-agent-writer-ui {\n  background-color: var(--c-greBacPri) !important;\n  width: calc(100% - 48px) !important;\n  margin-inline: auto !important;\n}\n\n/* === 正文内容字体 === */\n/* Notion 新的 AI 全屏首页（/ai）使用哈希类名 DOM，不含 .layout-chat；\n   以输入框容器为锚点覆盖整块内容区，并排除旧版聊天布局与左侧边栏 */\n:where(\n  div:has([data-notion-chat-input-container]):not(\n    :has(.layout-chat, .chat_sidebar, .notion-sidebar-container)\n  )\n) *,\ndiv.notion-page-content *,\ndiv.notion-collection-view-body :where(div.notion-page-block:not(.notion-collection-item)) *,\ndiv.notion-collection-item *,\ndiv.layout-chat *,\ndiv.chat_sidebar *,\ndiv.notion-agent-writer-ui :where(div[role=\"group\"].whenContentEditable) * {\n  font-family: \"Oxanium\", \"Pridi\", \"NotionRestyleBodyCJK\", \"Noto Sans SC\", STKaiti, -apple-system,\n    BlinkMacSystemFont, \"Segoe UI\", Helvetica, \"Apple Color Emoji\",\n    Arial, sans-serif, \"Segoe UI Emoji\", \"Segoe UI Symbol\" !important;\n  font-weight: 500;\n  line-height: 1.8em !important;\n}\n\n/* === 侧边栏字体 === */\n/* 英文/数字沿用正文的 Oxanium→Pridi 字体栈；中文字符不在该栈内，继续使用系统默认中文字体 */\n:where(.notion-sidebar-container) * {\n  font-family: \"Oxanium\", \"Pridi\", ui-sans-serif, -apple-system, \"system-ui\",\n    \"Segoe UI Variable Display\", \"Segoe UI\", Helvetica, Arial, sans-serif !important;\n}\n\n/* Feed popup 的内容块使用普通正文的 16px 基准字号 */\ndiv.notion-peek-renderer div.notion-collection-view-body\n  :where(div.notion-page-block:not(.notion-collection-item):not(div.notion-page-block div.notion-page-block))\n  :where(div.notion-selectable:not(.notion-page-block)) {\n  font-size: 16px !important;\n}\n\n/* 右键 Agent 生成内容比普通正文稍小，但继续跟随正文缩放 */\ndiv.notion-agent-writer-ui :where(div[role=\"group\"].whenContentEditable)\n  :where(div.notion-selectable:not(.notion-page-block)) {\n  font-size: 13px !important;\n}\n\n/* === 分隔符：保留整行交互区域，只缩短并居中可见横线 === */\ndiv.notion-divider-block [role=\"separator\"] {\n  width: 100px !important;\n  height: 2px !important;\n  margin-inline: auto !important;\n}\n\n/* === 页面标题字体 === */\nh1[aria-roledescription=\"page title\"],\nh1[aria-roledescription=\"page title\"] * {\n  font-family: \"Signika\", \"NotionRestyleHeadingCJK\", \"Noto Sans SC\", \"PingFang SC\", sans-serif !important;\n  font-weight: 700 !important;\n}\n\n/* === 标题字体 === */\n/* 仅将真实标题块设为标题样式，避免 Feed 预览中的正文被整体加粗 */\ndiv.notion-header-block span,\ndiv.notion-header-block div,\ndiv.notion-header-block h1,\ndiv.notion-header-block h2,\ndiv.notion-header-block h3,\ndiv.notion-sub_header-block span,\ndiv.notion-sub_header-block div,\ndiv.notion-sub_header-block h1,\ndiv.notion-sub_header-block h2,\ndiv.notion-sub_header-block h3,\ndiv.notion-sub_sub_header-block span,\ndiv.notion-sub_sub_header-block div,\ndiv.notion-sub_sub_header-block h1,\ndiv.notion-sub_sub_header-block h2,\ndiv.notion-sub_sub_header-block h3 {\n  font-family: \"Pridi1\", \"Signika\", \"Oswald\", \"Space Grotesk\", \"NotionRestyleHeadingCJK\", \"Noto Sans SC\", \"PingFang SC\" !important;\n  font-weight: 500 !important;\n}\n\n/* 页面卡片标题使用标题字体，但保留 Notion 自己设置的标题字重 */\ndiv.notion-page-block:not(.notion-collection-item) a > div[role=\"button\"],\ndiv.notion-page-block:not(.notion-collection-item) a > div[role=\"button\"] * {\n  font-family: \"Pridi1\", \"Signika\", \"Oswald\", \"Space Grotesk\", \"NotionRestyleHeadingCJK\", \"Noto Sans SC\", \"PingFang SC\" !important;\n}\n\n/* === 数据库卡片字体 === */\n/* notion-page-block 也用于卡片标题；在卡片内恢复正文的常规字重 */\ndiv.notion-collection-item.notion-collection-item,\ndiv.notion-collection-item.notion-collection-item * {\n  font-family: \"Oxanium\", \"Pridi\", \"NotionRestyleBodyCJK\", \"Noto Sans SC\", STKaiti, -apple-system,\n    BlinkMacSystemFont, \"Segoe UI\", Helvetica, \"Apple Color Emoji\",\n    Arial, sans-serif, \"Segoe UI Emoji\", \"Segoe UI Symbol\" !important;\n  font-weight: 400 !important;\n}\n\n/* 卡片内的页面图标保留 Notion 的紧凑行高，避免 emoji 被正文行高压到文字下方 */\ndiv.notion-collection-item .notion-record-icon,\ndiv.notion-collection-item .notion-record-icon * {\n  line-height: 1 !important;\n}\n\n/* === 数据库属性字体 === */\n/* 页面标题容器也包住侧栏属性；普通属性使用正文样式，保留显式 font-weight */\ndiv.notion-page-block [role=\"row\"] [role=\"cell\"] div,\ndiv.notion-page-block [role=\"row\"] [role=\"cell\"] span {\n  font-family: \"Oxanium\", \"Pridi\", \"NotionRestyleBodyCJK\", \"Noto Sans SC\", STKaiti, -apple-system,\n    BlinkMacSystemFont, \"Segoe UI\", Helvetica, \"Apple Color Emoji\",\n    Arial, sans-serif, \"Segoe UI Emoji\", \"Segoe UI Symbol\" !important;\n}\n\ndiv.notion-page-block [role=\"row\"] [role=\"cell\"] div:not([style*=\"font-weight\"]),\ndiv.notion-page-block [role=\"row\"] [role=\"cell\"] span:not([style*=\"font-weight\"]) {\n  font-weight: 400 !important;\n}\n\n/* === 代码块字体（启用连字） === */\ndiv.notion-code-block [data-content-editable-leaf],\ndiv.notion-code-block [data-content-editable-leaf] * {\n  font-family: \"Cascadia Code NF\", Consolas, \"NotionRestyleBodyCJK\", \"Noto Sans SC\", monospace !important;\n  font-feature-settings: \"liga\" 1, \"calt\" 1;\n}\n", "72d26a66c4d85c1492d6")
 ;
 
   if (!window.__NOTION_RESTYLE_MENU_REGISTERED__) {
